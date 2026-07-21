@@ -1,0 +1,29 @@
+# Small shared grid for Phase 5 (≤ a few runs per model×condition).
+# Early stopping uses validation choice NLL.
+
+version: v1_rnn_grid
+max_epochs: 12
+patience: 3
+batch_size: 64
+conditions:
+  - history_only
+  - full_information
+  - fixed_prior
+models:
+  - standard
+  - pc
+  - bayes
+# Primary config used for all model×condition runs
+default_run:
+  name: default
+  hidden_size: 64
+  lr: 0.001
+  lambda_rt: 0.2
+# Optional extra runs on history_only only (for selection sensitivity)
+history_only_extra: []
+# Example alternative (commented to keep wall-clock small):
+# history_only_extra:
+#   - name: hs32_lr3e4
+#     hidden_size: 32
+#     lr: 0.0003
+#     lambda_rt: 0.2

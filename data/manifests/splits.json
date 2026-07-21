@@ -1,0 +1,22 @@
+{
+  "seed": 0,
+  "train": [
+    "da665ec4-445d-4d7e-a0dd-b3b156213754",
+    "edf88809-e5e3-4274-a74e-72d2975ea292",
+    "0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b",
+    "b052b9d7-3bfa-4d23-b195-99cfbd3f467c",
+    "76edf716-f3c5-4823-95f3-9d37ed9cbeae",
+    "a15c8461-1899-4477-9f2b-d60ea52d7cba"
+  ],
+  "val": [
+    "ba892860-149e-4bff-9961-aa6583d96661",
+    "30ca9591-14d3-493c-8b9c-ae13ae8246d9"
+  ],
+  "test": [
+    "81f90b18-e61c-4d32-bbce-3e0c5f33f06c",
+    "257ec2b8-6e8d-4b98-99de-a232b58fde2c"
+  ],
+  "note": "Session-level split; no eid overlap. Switch metrics use held-out sessions only.",
+  "created_utc": "2026-07-21T22:53:16.494957+00:00",
+  "config_version": "frozen_v1"
+}

@@ -1,0 +1,141 @@
+# frozen_v1.yaml — machine-readable v1 freeze
+# Companion: docs/spec.md, docs/plan.md
+# Bump version string if encodings/QC rules change after Phase 2.
+
+version: frozen_v1
+frozen_date: "2026-07-20"
+readme_ground_truth: true
+models:
+  - standard_rnn
+  - predictive_coding_rnn
+  - bayesian
+
+non_goals:
+  - meta_rl
+  - full_brainwide_required
+  - visp_as_success_criterion
+  - multibit_contrast
+  - separate_incorrect_channel
+
+data:
+  one_base_url: "https://openalyx.internationalbrainlab.org"
+  cache_dir: data/raw/one_cache
+  manifests:
+    behavior_core: data/manifests/behavior_core_eids.json
+    neural_intersect: data/manifests/neural_intersect_eids.json
+    splits: data/manifests/splits.json
+  session_inclusion:
+    require_fields:
+      - contrastLeft
+      - contrastRight
+      - choice
+      - feedbackType
+      - probabilityLeft
+      - stimOn_times
+      - goCue_times
+      - response_times
+      - feedback_times
+    probability_left_set: [0.2, 0.5, 0.8]
+    min_choice_trials: 400
+    require_left_and_right_bias_blocks: true
+    almost_perfect:
+      min_fraction_pass_timing_choice_rules: 0.95
+      min_fraction_after_rt_percentile_trim: 0.90
+  trial_inclusion:
+    require_finite_event_times: true
+    require_monotonic_stim_go_resp_fb: true
+    rt_positive: true
+    choice_in: [-1, 1]
+    rt_percentile_trim: [1, 99]
+
+conditions:
+  - fixed_prior
+  - full_information
+  - history_only
+
+rt:
+  primary: response_times - goCue_times
+  fallback: response_times - stimOn_times
+  likelihood: lognormal_or_gaussian_on_log
+  prev_fast_rt: below_session_median
+
+contrast_high:
+  high: [0.25, 0.5, 1.0]
+  low: [0.0, 0.0625, 0.125]
+
+reward_channel:
+  reward_equals_feedbackType_pos1: true
+  separate_incorrect_channel: false
+
+rnn:
+  bin_size_ms: 100
+  bin0_aligned_to: stimOn_times
+  event_delta_audit:
+    report: reports/inspection/event_deltas.md
+    pooled_median_go_minus_stim_s: 0.016
+    pooled_median_resp_minus_go_s: 0.413
+    pooled_median_off_minus_stim_s: 1.484
+  phase_map_v1:
+    # Tentative from behavior-core audit; refine only with version bump.
+    stimulus_channels_on_from_bin: 0
+    # goCue typically ~16ms after stimOn → still bin 0 at 100ms resolution
+    response_window_on_from_bin: 0
+    stimulus_off_approx_bin: 15  # ~1.48s / 0.1s
+    response_made: bin_containing_response_minus_stimOn
+    reward: bin_containing_feedback_minus_stimOn
+  binary_channels_common:
+    - stimulus_right
+    - contrast_high
+    - delay_phase
+    - response_window
+    - response_made
+    - reward
+    - prev_choice_right
+    - prev_correct
+    - prev_fast_rt
+  full_information_extra:
+    - oracle_prior_right
+
+outputs:
+  primary_targets: [choice, rt]
+  loss: "L_choice + lambda * L_RT"
+  lambda_rt: 0.2  # smoke default; revisit after Phase 5 pilots if needed
+  diagnostic_heads_default: false
+
+evaluation:
+  primary_model_selection_metric: heldout_choice_loglik
+  also_report: [choice_accuracy, choice_pseudo_r2, rt_loglik]
+  switch:
+    align_to: first_trial_new_probabilityLeft
+    window_trials: [-10, 30]
+    prefer_pre_post: [10, 20]
+    allow_pre_post: [8, 16]
+    flag_relaxed_and_run_sensitivity: true
+  mouse_prior:
+    type: behavior_derived_latent
+    not_equal_to: probabilityLeft
+  neural:
+    regions_required: [MOs, vlOFC_orbvl]
+    regions_optional_control: [VISp]
+    primary_metric: variance_explained_prior_readout
+    companion_metric: correlation
+    emphasize_switch_window: true
+    peri_stim_window_s:
+      t_start: -0.1
+      t_end: 0.3
+      align_event: stimOn_times
+    pilot_eid: 1191f865-b10a-45c8-9c48-24a980fd9402
+    unit_source: SpikeSortingLoader_or_alf
+    neural_behavior_pool_note: "Strict core∩neural empty; use neural_behavior_pool for Phase 8."
+  behavior_matching:
+    choice_primary: true
+    choice_epsilon_ball: 0.05
+    rt_secondary_floor: 2.03
+    confirmatory_test: paired_bootstrap_or_session_permutation
+    multiple_comparison: holm_across_regions
+    notes: "Provisional from Phase 5 history_only val metrics (2026-07-21); standard best choice NLL≈0.261, pc≈0.330, bayes≈0.526"
+
+architecture_open:
+  standard_rnn_cell: gru
+  predictive_coding_equations: "h <- tanh(W_h h + W_e (x - W_p h)); shared readout heads"
+  bayesian_form: "online leaky prior q_t with feature evidence nudge + prior-biased choice"

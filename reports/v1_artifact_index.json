@@ -1,0 +1,156 @@
+{
+  "created_utc": "2026-07-21T23:15:08.393073+00:00",
+  "config_version": "frozen_v1",
+  "artifacts": [
+    {
+      "path": "configs/frozen_v1.yaml",
+      "exists": true,
+      "sha256_16": "c71c189f3503f8e1",
+      "bytes": 4289
+    },
+    {
+      "path": "docs/spec.md",
+      "exists": true,
+      "sha256_16": "a65bef1980d17221",
+      "bytes": 15381
+    },
+    {
+      "path": "docs/plan.md",
+      "exists": true,
+      "sha256_16": "cb69b4ec4d96fbcd",
+      "bytes": 19529
+    },
+    {
+      "path": "data/manifests/behavior_core_eids.json",
+      "exists": true,
+      "sha256_16": "0341fb7578aa2f7c",
+      "bytes": 4888
+    },
+    {
+      "path": "data/manifests/neural_intersect_eids.json",
+      "exists": true,
+      "sha256_16": "44ebc8598b3d61fd",
+      "bytes": 4904
+    },
+    {
+      "path": "data/manifests/splits.json",
+      "exists": true,
+      "sha256_16": "551e81a46ef87da7",
+      "bytes": 682
+    },
+    {
+      "path": "reports/behavior/heldout_metrics.csv",
+      "exists": true,
+      "sha256_16": "6217ae4dcbd26722",
+      "bytes": 2509
+    },
+    {
+      "path": "reports/behavior/prior_match.csv",
+      "exists": true,
+      "sha256_16": "2f17594963b56383",
+      "bytes": 378
+    },
+    {
+      "path": "reports/behavior/phase7_prior_summary.json",
+      "exists": true,
+      "sha256_16": "b1ec9a03e4ad06aa",
+      "bytes": 4803
+    },
+    {
+      "path": "reports/neural/behavior_matched_models.json",
+      "exists": true,
+      "sha256_16": "dd6d07157da62d2f",
+      "bytes": 1565
+    },
+    {
+      "path": "reports/neural/ve_matched.csv",
+      "exists": true,
+      "sha256_16": "cf53115a75dc2b78",
+      "bytes": 378
+    },
+    {
+      "path": "reports/neural/ve_unmatched.csv",
+      "exists": true,
+      "sha256_16": "55cc8b8e3ed8db66",
+      "bytes": 981
+    },
+    {
+      "path": "reports/neural/survival_tests.json",
+      "exists": true,
+      "sha256_16": "5a6a0d73312d9a25",
+      "bytes": 2729
+    },
+    {
+      "path": "reports/neural/phase8_pilot.json",
+      "exists": true,
+      "sha256_16": "541dd884bdc07ade",
+      "bytes": 3338
+    },
+    {
+      "path": "reports/neural/phase9_summary.json",
+      "exists": true,
+      "sha256_16": "91fb6d50143d21b9",
+      "bytes": 1745
+    },
+    {
+      "path": "reports/v1_report.md",
+      "exists": true,
+      "sha256_16": "4d6e6bcf3aeec49a",
+      "bytes": 4121
+    },
+    {
+      "path": "reports/figures/phase10/heldout_choice_nll.png",
+      "exists": true,
+      "sha256_16": "57454773fc0638d3",
+      "bytes": 15592
+    },
+    {
+      "path": "reports/figures/phase10/neural_ve_unmatched_vs_matched.png",
+      "exists": true,
+      "sha256_16": "58f11240bebea02a",
+      "bytes": 28383
+    },
+    {
+      "path": "reports/figures/phase10/prior_match.png",
+      "exists": true,
+      "sha256_16": "bf22d8995314c3e7",
+      "bytes": 16568
+    },
+    {
+      "path": "reports/figures/phase10/psychometrics.png",
+      "exists": true,
+      "sha256_16": "9b0f21bea4e21e00",
+      "bytes": 44014
+    },
+    {
+      "path": "reports/figures/phase10/survival_tests.png",
+      "exists": true,
+      "sha256_16": "b55304de694f600d",
+      "bytes": 18371
+    },
+    {
+      "path": "reports/figures/phase10/switch_centered.png",
+      "exists": true,
+      "sha256_16": "1394992734dd72b6",
+      "bytes": 78552
+    }
+  ],
+  "reproduce": [
+    "python -m pytest tests/ -q",
+    "python scripts/eval_phase6.py",
+    "python scripts/eval_phase7_priors.py",
+    "python scripts/eval_phase8_neural_pilot.py",
+    "python scripts/eval_phase9_matched.py",
+    "python scripts/make_phase10_figures.py"
+  ],
+  "risks_status": {
+    "R1": "Frozen: GRU standard; PC tanh residual form in YAML",
+    "R2": "Frozen: leaky online prior with feature evidence nudge",
+    "R3": "Frozen: choice_epsilon=0.05, rt_nll_floor=2.03",
+    "R4": "Frozen after pilot: peri_stim [-0.1, 0.3) stimOn",
+    "R5": "Partially frozen via event_delta_audit in YAML",
+    "R6": "Mitigated by almost-perfect session gate",
+    "R7": "Frozen: alpha-grid + logistic mouse prior in src/eval/mouse_prior.py",
+    "R8": "Behavior-core n=10; neural pool n=25 pass QC"
+  }
+}

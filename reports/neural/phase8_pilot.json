@@ -1,0 +1,117 @@
+{
+  "created_utc": "2026-07-21T23:08:50.977504+00:00",
+  "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+  "mouse_prior_fit": {
+    "params": {
+      "alpha": 0.19999999999999998,
+      "intercept": 0.38262752939799566,
+      "beta_contrast": 9.71187632427872,
+      "beta_prior": 0.8970462765553242,
+      "p0": 0.5
+    },
+    "fit_info": {
+      "success": true,
+      "nll": 0.2681467973185681,
+      "n_trials": 944,
+      "corr_with_oracle_prior_right": 0.8042009039722927,
+      "alpha_grid_size": 28,
+      "message": "grid_alpha_plus_logistic"
+    }
+  },
+  "window": {
+    "t_start": -0.1,
+    "t_end": 0.3,
+    "align_event": "stimOn_times"
+  },
+  "regions": {
+    "MOs": {
+      "n_units": 48,
+      "n_trials": 944,
+      "readout_ve_cv": 0.11069175661455743,
+      "readout_corr_cv": 0.3331215653509245,
+      "window": {
+        "t_start": -0.1,
+        "t_end": 0.3,
+        "align_event": "stimOn_times"
+      }
+    },
+    "vlOFC_orbvl": {
+      "n_units": 572,
+      "n_trials": 944,
+      "readout_ve_cv": 0.37665461846398196,
+      "readout_corr_cv": 0.616835649205988,
+      "window": {
+        "t_start": -0.1,
+        "t_end": 0.3,
+        "align_event": "stimOn_times"
+      }
+    }
+  },
+  "ve_unmatched_attempted": [
+    {
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "region": "MOs",
+      "model": "standard",
+      "status": "ok_ood_behavior_core_checkpoint",
+      "n": 944.0,
+      "ve_raw": -0.19683532974924112,
+      "ve_linear_recal": 0.1043921102617521,
+      "corr": -0.323097679133961
+    },
+    {
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "region": "MOs",
+      "model": "pc",
+      "status": "ok_ood_behavior_core_checkpoint",
+      "n": 944.0,
+      "ve_raw": 0.16671411951385307,
+      "ve_linear_recal": 0.27377219776801387,
+      "corr": 0.5232324509890551
+    },
+    {
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "region": "MOs",
+      "model": "bayes",
+      "status": "ok_ood_behavior_core_checkpoint",
+      "n": 944.0,
+      "ve_raw": -0.3229161262590141,
+      "ve_linear_recal": 0.10198438279588584,
+      "corr": 0.31934993783604504
+    },
+    {
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "region": "vlOFC_orbvl",
+      "model": "standard",
+      "status": "ok_ood_behavior_core_checkpoint",
+      "n": 944.0,
+      "ve_raw": -0.12029358679709823,
+      "ve_linear_recal": 0.21227938835791393,
+      "corr": -0.4607378738045245
+    },
+    {
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "region": "vlOFC_orbvl",
+      "model": "pc",
+      "status": "ok_ood_behavior_core_checkpoint",
+      "n": 944.0,
+      "ve_raw": 0.2994886793049756,
+      "ve_linear_recal": 0.31599718208008787,
+      "corr": 0.5621362664693391
+    },
+    {
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "region": "vlOFC_orbvl",
+      "model": "bayes",
+      "status": "ok_ood_behavior_core_checkpoint",
+      "n": 944.0,
+      "ve_raw": 0.3352878653006033,
+      "ve_linear_recal": 0.3927158413889271,
+      "corr": 0.6266704408131336
+    }
+  ],
+  "notes": [
+    "Strict behavior-core\u2229neural is empty; this eid is from neural_behavior_pool.",
+    "Model VE uses behavior-core checkpoints evaluated OOD on this neural eid.",
+    "Confirmatory claims require Phase 9 behavior matching + preferably neural-pool training."
+  ]
+}

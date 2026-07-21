@@ -1,0 +1,55 @@
+{
+  "condition": "history_only",
+  "choice_primary": true,
+  "choice_epsilon": 0.05,
+  "rt_nll_floor": 2.03,
+  "best_model": "standard",
+  "best_choice_nll": 0.1690711477683627,
+  "matched_models": [
+    "standard"
+  ],
+  "excluded_models": [
+    "bayes",
+    "pc"
+  ],
+  "rows": [
+    {
+      "model": "bayes",
+      "choice_nll": 0.5475494030617031,
+      "rt_nll": 1.4370129919585082,
+      "choice_delta_from_best": 0.37847825529334034,
+      "in_choice_epsilon_ball": false,
+      "passes_rt_floor": true,
+      "matched": false,
+      "exclude_reason": "choice_nll_delta=0.3785>0.05"
+    },
+    {
+      "model": "pc",
+      "choice_nll": 0.2378773808684641,
+      "rt_nll": -0.2378843627233473,
+      "choice_delta_from_best": 0.0688062331001014,
+      "in_choice_epsilon_ball": false,
+      "passes_rt_floor": true,
+      "matched": false,
+      "exclude_reason": "choice_nll_delta=0.0688>0.05"
+    },
+    {
+      "model": "standard",
+      "choice_nll": 0.1690711477683627,
+      "rt_nll": -0.8829876264762048,
+      "choice_delta_from_best": 0.0,
+      "in_choice_epsilon_ball": true,
+      "passes_rt_floor": true,
+      "matched": true,
+      "exclude_reason": ""
+    }
+  ],
+  "assert_choice_primary": true,
+  "metric_source": "heldout_metrics.csv history_only",
+  "created_utc": "2026-07-21T23:14:11.071517+00:00",
+  "notes": [
+    "Choice-primary: models outside \u03b5-ball are excluded even if neural VE is higher.",
+    "RT floor is secondary (rt_nll <= floor).",
+    "Neural VE is OOD (behavior-core checkpoints on neural_behavior_pool eid)."
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "created_utc": "2026-07-21T01:16:10.097535+00:00",
+  "query": {
+    "task_protocol": "_iblrig_tasks_biasedChoiceWorld",
+    "n_requested": 25,
+    "seed_eid": "4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a"
+  },
+  "eids": [
+    "4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a",
+    "0fbb062d-4a32-48e5-b224-5c8c7c398960",
+    "4eb53f24-a794-4e97-9a3f-f0a3593b3506",
+    "ee755a8c-4246-448f-a066-15097d0e5afe",
+    "4dc796f2-6be5-4174-830a-29c95a7fd7e8",
+    "efdadb02-591f-482d-a88c-9e76f59e3592",
+    "dffee96e-e2d3-4971-b8c4-a0e966c7b3ef",
+    "71ec3212-127f-461b-b5af-cc75a6ab3fc4",
+    "140b5ee6-3949-44bf-9319-47374796e285",
+    "5e0f903d-7d46-4529-a9a5-b83bcf916fe8",
+    "33b512fc-b75c-4636-8102-04fd96cea47a",
+    "e4f36b67-d07c-4fcf-a56c-3055621a713e",
+    "da665ec4-445d-4d7e-a0dd-b3b156213754",
+    "30ca9591-14d3-493c-8b9c-ae13ae8246d9",
+    "0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b",
+    "a15c8461-1899-4477-9f2b-d60ea52d7cba",
+    "edf88809-e5e3-4274-a74e-72d2975ea292",
+    "ba892860-149e-4bff-9961-aa6583d96661",
+    "76edf716-f3c5-4823-95f3-9d37ed9cbeae",
+    "e2946a6f-4157-4c38-ba7e-83c31c218ea7",
+    "257ec2b8-6e8d-4b98-99de-a232b58fde2c",
+    "b052b9d7-3bfa-4d23-b195-99cfbd3f467c",
+    "81f90b18-e61c-4d32-bbce-3e0c5f33f06c",
+    "2dda7005-3392-4de5-bd65-f90263d8229f",
+    "8df7b200-e44c-4c67-82e9-2666ba05d649"
+  ]
+}

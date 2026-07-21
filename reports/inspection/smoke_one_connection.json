@@ -1,0 +1,29 @@
+{
+  "created_utc": "2026-07-21T01:16:09.769199+00:00",
+  "eid": "4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a",
+  "n_trials": 529,
+  "columns": [
+    "goCueTrigger_times",
+    "intervals_bpod_0",
+    "intervals_bpod_1",
+    "quiescencePeriod",
+    "stimOffTrigger_times",
+    "stimOff_times",
+    "stimOnTrigger_times",
+    "goCue_times",
+    "response_times",
+    "choice",
+    "stimOn_times",
+    "contrastLeft",
+    "contrastRight",
+    "probabilityLeft",
+    "feedback_times",
+    "feedbackType",
+    "rewardVolume",
+    "firstMovement_times",
+    "intervals_0",
+    "intervals_1"
+  ],
+  "missing_core_fields": [],
+  "ok": true
+}

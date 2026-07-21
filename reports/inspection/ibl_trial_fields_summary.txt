@@ -1,0 +1,575 @@
+IBL trial-field inspection
+created_utc: 2026-07-21T00:56:07.280635+00:00
+cache_dir: /Users/shivamahdian/Desktop/Performance/data/raw/one_cache
+succeeded: 3 / 3
+=== Session 4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a ===
+n_trials: 529
+
+All trials columns:
+  - goCueTrigger_times
+  - intervals_bpod_0
+  - intervals_bpod_1
+  - quiescencePeriod
+  - stimOffTrigger_times
+  - stimOff_times
+  - stimOnTrigger_times
+  - goCue_times
+  - response_times
+  - choice
+  - stimOn_times
+  - contrastLeft
+  - contrastRight
+  - probabilityLeft
+  - feedback_times
+  - feedbackType
+  - rewardVolume
+  - firstMovement_times
+  - intervals_0
+  - intervals_1
+
+Core IBL fields present:
+  - contrastLeft
+  - contrastRight
+  - choice
+  - feedbackType
+  - probabilityLeft
+  - stimOn_times
+  - goCue_times
+  - response_times
+  - feedback_times
+  - rewardVolume
+  - firstMovement_times
+  - intervals_0
+  - intervals_1
+
+Core IBL fields missing:
+  (none)
+
+Optional IBL fields present:
+  - goCueTrigger_times
+  - stimOnTrigger_times
+  - stimOff_times
+  - stimOffTrigger_times
+  - quiescencePeriod
+  - intervals_bpod_0
+  - intervals_bpod_1
+
+Official IBL definitions (for present fields):
+  contrastLeft: Contrast of left-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    source: IBL trials ALF / ContrastLR extractor
+  contrastRight: Contrast of right-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    source: IBL trials ALF / ContrastLR extractor
+  choice: Response ID: -1 = turn CCW / left, +1 = turn CW / right, 0 = no-go.
+    source: IBL trials ALF / Choice extractor
+  feedbackType: Feedback sign: +1 = positive / reward (correct), -1 = negative (error or no-go), 0 = no feedback.
+    source: IBL trials ALF / FeedbackType extractor
+  probabilityLeft: Hidden block prior: probability that the stimulus appears on the left (from stim_probability_left). Biased-choice sessions typically use {0.2, 0.5, 0.8}.
+    source: IBL trials ALF / ProbabilityLeft; brainbox.behavior.training
+  stimOn_times: Stimulus onset time in seconds relative to session start.
+    source: IBL trials ALF
+  goCue_times: Go-cue tone time in seconds relative to session start.
+    source: IBL trials ALF / GoCueTimes extractor
+  response_times: Time when a response was recorded (end of closed-loop state), in seconds relative to session start.
+    source: IBL trials ALF / ResponseTimes extractor
+  feedback_times: Time of feedback delivery (reward or error noise), in seconds relative to session start.
+    source: IBL trials ALF / FeedbackTimes extractor
+  rewardVolume: Volume of reward delivered on each trial (µl); 0 if incorrect.
+    source: IBL trials ALF / RewardVolume extractor
+  firstMovement_times: Time of first movement in seconds relative to session start.
+    source: IBL trials ALF
+  intervals_0: Trial start time (first column of trials.intervals).
+    source: IBL trials ALF / Intervals extractor
+  intervals_1: Trial end time (second column of trials.intervals).
+    source: IBL trials ALF / Intervals extractor
+  goCueTrigger_times: Time the go-cue trigger command was sent (may precede measured goCue_times).
+    source: IBL trials ALF
+  stimOnTrigger_times: Time the stimulus-onset trigger command was sent.
+    source: IBL trials ALF
+  stimOff_times: Stimulus offset time in seconds relative to session start.
+    source: IBL trials ALF
+  quiescencePeriod: Required quiescence duration before the trial proceeds.
+    source: IBL trials ALF
+
+Project-derived encodings (NOT IBL columns; still open decisions):
+  - stimulus_right: Binary channel: 1 if stim on right (contrastRight finite), else 0. Not an IBL column.
+  - contrast_high: Binary high/low contrast split of absolute contrast. Cutoff is a project decision; IBL only stores continuous contrastLeft/Right.
+  - delay_phase: Within-trial binary phase channel for RNN event bins. Project-defined.
+  - response_window: Within-trial binary phase channel. Project-defined.
+  - response_made: Within-trial binary event at response. Project-defined.
+  - reward: Binary reward-present channel. May be derived from feedbackType==1 or rewardVolume>0; incorrect-as-separate-channel is still open.
+  - prev_choice_right: Previous-trial history channel. Project-defined.
+  - prev_correct: Previous-trial history channel. Project-defined.
+  - prev_fast_rt: Binary previous-RT summary (below session median). Project-defined; uses derived RT, not an IBL column.
+  - oracle_prior_right: Full-information oracle prior channel from probabilityLeft. Project-defined binarization of an IBL field.
+  - rt_target: Training target: response_times - goCue_times (fallback stimOn). Project-defined from IBL times.
+
+Concept → IBL column coverage:
+  [OK|raw] stimulus_side: found=['contrastLeft', 'contrastRight']
+    rule: Stim on left iff contrastLeft is finite and contrastRight is NaN; stim on right iff contrastRight is finite and contrastLeft is NaN.
+  [OK|raw] stimulus_contrast: found=['contrastLeft', 'contrastRight']
+    rule: Absolute contrast = non-NaN side value in [0, 1]. IBL also uses signed contrast = contrastRight - contrastLeft (left negative) via brainbox.behavior.training.get_signed_contrast.
+  [OK|raw] choice: found=['choice']
+    rule: -1 left / CCW, +1 right / CW, 0 no-go.
+  [OK|raw] correctness_or_reward: found=['feedbackType', 'rewardVolume']
+    rule: feedbackType +1 correct/reward, -1 error/no-go, 0 no feedback; rewardVolume > 0 only on rewarded trials.
+  [OK|raw] block_prior: found=['probabilityLeft']
+    rule: probabilityLeft is the true hidden prior P(stim left). Biased blocks typically in {0.2, 0.5, 0.8}.
+  [OK|raw] stimulus_onset: found=['stimOn_times']
+    rule: Seconds from session start.
+  [OK|raw] go_cue_response_permission: found=['goCue_times']
+    rule: Go-cue tone marks response permission.
+  [OK|raw] response_time: found=['response_times']
+    rule: Absolute session time when response was recorded.
+  [OK|raw] feedback_time: found=['feedback_times']
+    rule: Absolute session time of reward or error feedback.
+  [OK|derived] reaction_time_ingredients: found=['goCue_times', 'stimOn_times', 'response_times']
+    rule: IBL provides the ingredient times only. Project RT target is derived: response_times - goCue_times, fallback response_times - stimOn_times.
+
+Coding checks vs IBL encodings:
+  choice: {'observed_values': [-1, 0, 1], 'expected_values': [-1, 0, 1], 'matches_ibl_encoding': True}
+  feedbackType: {'observed_values': [-1, 1], 'expected_values': [-1, 0, 1], 'matches_ibl_encoding': True}
+  probabilityLeft: {'observed_values': [0.2, 0.5, 0.8], 'expected_biased_set': [0.2, 0.5, 0.8], 'subset_of_expected_biased_set': True}
+  stimulus_side_pattern: {'right': 266, 'left': 263}
+  n_both_sides_finite: 0
+  n_neither_side_finite: 0
+
+Field summaries:
+  contrastLeft: dtype=float64 missing=266/529 unique=5
+    ibl: Contrast of left-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    value_counts: {'0.25': 61, '0.125': 61, '1.0': 60, '0.0625': 57, '0.0': 24}
+  contrastRight: dtype=float64 missing=263/529 unique=5
+    ibl: Contrast of right-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    value_counts: {'0.125': 66, '0.0625': 59, '1.0': 57, '0.25': 49, '0.0': 35}
+  choice: dtype=float64 missing=0/529 unique=3
+    ibl: Response ID: -1 = turn CCW / left, +1 = turn CW / right, 0 = no-go.
+    value_counts: {'1.0': 294, '-1.0': 232, '0.0': 3}
+  feedbackType: dtype=float64 missing=0/529 unique=2
+    ibl: Feedback sign: +1 = positive / reward (correct), -1 = negative (error or no-go), 0 = no feedback.
+    value_counts: {'1.0': 443, '-1.0': 86}
+  probabilityLeft: dtype=float64 missing=0/529 unique=3
+    ibl: Hidden block prior: probability that the stimulus appears on the left (from stim_probability_left). Biased-choice sessions typically use {0.2, 0.5, 0.8}.
+    value_counts: {'0.8': 234, '0.2': 205, '0.5': 90}
+  stimOn_times: dtype=float64 missing=0/529 unique=529
+    ibl: Stimulus onset time in seconds relative to session start.
+    samples: [270.22630800027025, 274.9426696502749, 278.0591913002781, 280.72479138028075, 284.8746096902849, 288.3927245102884, 291.15788130029114, 295.5579412502956]
+  goCue_times: dtype=float64 missing=0/529 unique=529
+    ibl: Go-cue tone time in seconds relative to session start.
+    samples: [270.22724124027025, 274.94353623027496, 278.0601578702781, 280.7257912802807, 284.8757429102849, 288.3936910802884, 291.15864789029115, 295.55894115029554]
+  response_times: dtype=float64 missing=0/529 unique=529
+    ibl: Time when a response was recorded (end of closed-loop state), in seconds relative to session start.
+    samples: [270.7522462257719, 275.4972891149641, 278.3248192570565, 282.37775341038883, 285.5285723267715, 288.68169004075145, 291.9024155715091, 295.8494565366052]
+  feedback_times: dtype=float64 missing=1/529 unique=528
+    ibl: Time of feedback delivery (reward or error noise), in seconds relative to session start.
+    samples: [270.75235539027074, 275.4974141702755, 278.3249313902783, 282.37785939028237, 285.5286776102855, 288.6817956002887, 291.9033067502919, 295.84954542029584]
+  rewardVolume: dtype=float64 missing=0/529 unique=2
+    ibl: Volume of reward delivered on each trial (µl); 0 if incorrect.
+    value_counts: {'1.5': 443, '0.0': 86}
+  firstMovement_times: dtype=float64 missing=2/529 unique=527
+    ibl: Time of first movement in seconds relative to session start.
+    samples: [270.4452288401038, 274.97322883999675, 278.0542288399239, 282.1642288398267, 285.0312288397589, 288.5412288396759, 291.6282288396029, 295.72922883950594]
+  intervals_0: dtype=float64 missing=0/529 unique=529
+    ibl: Trial start time (first column of trials.intervals).
+    samples: [266.15101557026617, 272.7131592902727, 277.53001089027754, 280.24403946028025, 284.3110660502843, 287.4806823902875, 290.61410235029064, 294.84604578029484]
+  intervals_1: dtype=float64 missing=0/529 unique=529
+    ibl: Trial end time (second column of trials.intervals).
+    samples: [272.30825959264547, 277.0583078372093, 279.8760375864026, 283.94296664366993, 287.0912823828529, 290.2427029844627, 294.45934481180495, 297.4257764343571]
+  goCueTrigger_times: dtype=float64 missing=0/529 unique=529
+    ibl: Time the go-cue trigger command was sent (may precede measured goCue_times).
+    samples: [270.2264427226282, 274.9427831748788, 278.05931646216493, 280.7249426043995, 284.874768956285, 288.3928882010729, 291.15800793208115, 295.5580534128372]
+  stimOnTrigger_times: dtype=float64 missing=0/529 unique=529
+    ibl: Time the stimulus-onset trigger command was sent.
+    samples: [270.16844233620304, 274.87678246785333, 278.00491588950166, 280.6673422278113, 284.81306863820754, 288.33778785008155, 291.1015073522482, 295.4922527074702]
+  stimOff_times: dtype=float64 missing=0/529 unique=529
+    ibl: Stimulus offset time in seconds relative to session start.
+    samples: [271.8082497902718, 276.55827474027654, 279.3759262802794, 283.44288621028346, 286.5912713402866, 289.74258951028975, 293.95926780029396, 296.9257044602969]
+  stimOffTrigger_times: dtype=float64 missing=0/529 unique=529
+    samples: [271.75235288894044, 276.4973998285426, 279.3249297850078, 283.3778599490323, 286.52867748251265, 289.6817964114667, 293.902536097597, 296.84956725754]
+  quiescencePeriod: dtype=float64 missing=0/529 unique=529
+    ibl: Required quiescence duration before the trial proceeds.
+    samples: [0.54194925282752, 0.45799727604532425, 0.4268623138653618, 0.42319129332168465, 0.5018970748905933, 0.5667463922205243, 0.4872590902879576, 0.6460896678505538]
+  intervals_bpod_0: dtype=float64 missing=0/529 unique=529
+    samples: [0.0, 6.562099999999999, 11.3789, 14.0929, 18.1599, 21.3295, 24.462899999999998, 28.6948]
+  intervals_bpod_1: dtype=float64 missing=0/529 unique=529
+    samples: [6.157202999999999, 10.907202, 13.724902, 17.791802999999998, 20.940102, 24.091503, 28.308103, 31.274503]
+
+Absolute contrast value counts: {'0.125': 127, '1.0': 117, '0.0625': 116, '0.25': 110, '0.0': 59}
+Signed contrast unique (rounded): [-1.0, -0.25, -0.125, -0.0625, 0.0, 0.0625, 0.125, 0.25, 1.0]
+probabilityLeft value counts: {'0.8': 234, '0.2': 205, '0.5': 90}
+RT preview (seconds): {'definition': 'project-derived: response_times - goCue_times (fallback: response_times - stimOn_times)', 'n_finite': 529, 'n_nonpositive': 0, 'min': 0.0624069528007567, 'median': 0.34679931132586717, 'max': 60.000632822656826, 'p01': 0.07480102770826307, 'p99': 40.19288821355395}
+Event order check: {'n_complete_timing': 528, 'n_monotonic_stim_go_resp_fb': 528}
+
+=== Session 0fbb062d-4a32-48e5-b224-5c8c7c398960 ===
+n_trials: 1328
+
+All trials columns:
+  - stimOnTrigger_times
+  - stimOff_times
+  - quiescencePeriod
+  - goCueTrigger_times
+  - stimOffTrigger_times
+  - goCue_times
+  - response_times
+  - choice
+  - stimOn_times
+  - contrastLeft
+  - contrastRight
+  - feedback_times
+  - feedbackType
+  - rewardVolume
+  - probabilityLeft
+  - firstMovement_times
+  - intervals_0
+  - intervals_1
+
+Core IBL fields present:
+  - contrastLeft
+  - contrastRight
+  - choice
+  - feedbackType
+  - probabilityLeft
+  - stimOn_times
+  - goCue_times
+  - response_times
+  - feedback_times
+  - rewardVolume
+  - firstMovement_times
+  - intervals_0
+  - intervals_1
+
+Core IBL fields missing:
+  (none)
+
+Optional IBL fields present:
+  - goCueTrigger_times
+  - stimOnTrigger_times
+  - stimOff_times
+  - stimOffTrigger_times
+  - quiescencePeriod
+
+Official IBL definitions (for present fields):
+  contrastLeft: Contrast of left-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    source: IBL trials ALF / ContrastLR extractor
+  contrastRight: Contrast of right-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    source: IBL trials ALF / ContrastLR extractor
+  choice: Response ID: -1 = turn CCW / left, +1 = turn CW / right, 0 = no-go.
+    source: IBL trials ALF / Choice extractor
+  feedbackType: Feedback sign: +1 = positive / reward (correct), -1 = negative (error or no-go), 0 = no feedback.
+    source: IBL trials ALF / FeedbackType extractor
+  probabilityLeft: Hidden block prior: probability that the stimulus appears on the left (from stim_probability_left). Biased-choice sessions typically use {0.2, 0.5, 0.8}.
+    source: IBL trials ALF / ProbabilityLeft; brainbox.behavior.training
+  stimOn_times: Stimulus onset time in seconds relative to session start.
+    source: IBL trials ALF
+  goCue_times: Go-cue tone time in seconds relative to session start.
+    source: IBL trials ALF / GoCueTimes extractor
+  response_times: Time when a response was recorded (end of closed-loop state), in seconds relative to session start.
+    source: IBL trials ALF / ResponseTimes extractor
+  feedback_times: Time of feedback delivery (reward or error noise), in seconds relative to session start.
+    source: IBL trials ALF / FeedbackTimes extractor
+  rewardVolume: Volume of reward delivered on each trial (µl); 0 if incorrect.
+    source: IBL trials ALF / RewardVolume extractor
+  firstMovement_times: Time of first movement in seconds relative to session start.
+    source: IBL trials ALF
+  intervals_0: Trial start time (first column of trials.intervals).
+    source: IBL trials ALF / Intervals extractor
+  intervals_1: Trial end time (second column of trials.intervals).
+    source: IBL trials ALF / Intervals extractor
+  goCueTrigger_times: Time the go-cue trigger command was sent (may precede measured goCue_times).
+    source: IBL trials ALF
+  stimOnTrigger_times: Time the stimulus-onset trigger command was sent.
+    source: IBL trials ALF
+  stimOff_times: Stimulus offset time in seconds relative to session start.
+    source: IBL trials ALF
+  quiescencePeriod: Required quiescence duration before the trial proceeds.
+    source: IBL trials ALF
+
+Project-derived encodings (NOT IBL columns; still open decisions):
+  - stimulus_right: Binary channel: 1 if stim on right (contrastRight finite), else 0. Not an IBL column.
+  - contrast_high: Binary high/low contrast split of absolute contrast. Cutoff is a project decision; IBL only stores continuous contrastLeft/Right.
+  - delay_phase: Within-trial binary phase channel for RNN event bins. Project-defined.
+  - response_window: Within-trial binary phase channel. Project-defined.
+  - response_made: Within-trial binary event at response. Project-defined.
+  - reward: Binary reward-present channel. May be derived from feedbackType==1 or rewardVolume>0; incorrect-as-separate-channel is still open.
+  - prev_choice_right: Previous-trial history channel. Project-defined.
+  - prev_correct: Previous-trial history channel. Project-defined.
+  - prev_fast_rt: Binary previous-RT summary (below session median). Project-defined; uses derived RT, not an IBL column.
+  - oracle_prior_right: Full-information oracle prior channel from probabilityLeft. Project-defined binarization of an IBL field.
+  - rt_target: Training target: response_times - goCue_times (fallback stimOn). Project-defined from IBL times.
+
+Concept → IBL column coverage:
+  [OK|raw] stimulus_side: found=['contrastLeft', 'contrastRight']
+    rule: Stim on left iff contrastLeft is finite and contrastRight is NaN; stim on right iff contrastRight is finite and contrastLeft is NaN.
+  [OK|raw] stimulus_contrast: found=['contrastLeft', 'contrastRight']
+    rule: Absolute contrast = non-NaN side value in [0, 1]. IBL also uses signed contrast = contrastRight - contrastLeft (left negative) via brainbox.behavior.training.get_signed_contrast.
+  [OK|raw] choice: found=['choice']
+    rule: -1 left / CCW, +1 right / CW, 0 no-go.
+  [OK|raw] correctness_or_reward: found=['feedbackType', 'rewardVolume']
+    rule: feedbackType +1 correct/reward, -1 error/no-go, 0 no feedback; rewardVolume > 0 only on rewarded trials.
+  [OK|raw] block_prior: found=['probabilityLeft']
+    rule: probabilityLeft is the true hidden prior P(stim left). Biased blocks typically in {0.2, 0.5, 0.8}.
+  [OK|raw] stimulus_onset: found=['stimOn_times']
+    rule: Seconds from session start.
+  [OK|raw] go_cue_response_permission: found=['goCue_times']
+    rule: Go-cue tone marks response permission.
+  [OK|raw] response_time: found=['response_times']
+    rule: Absolute session time when response was recorded.
+  [OK|raw] feedback_time: found=['feedback_times']
+    rule: Absolute session time of reward or error feedback.
+  [OK|derived] reaction_time_ingredients: found=['goCue_times', 'stimOn_times', 'response_times']
+    rule: IBL provides the ingredient times only. Project RT target is derived: response_times - goCue_times, fallback response_times - stimOn_times.
+
+Coding checks vs IBL encodings:
+  choice: {'observed_values': [-1, 1], 'expected_values': [-1, 0, 1], 'matches_ibl_encoding': True}
+  feedbackType: {'observed_values': [-1, 1], 'expected_values': [-1, 0, 1], 'matches_ibl_encoding': True}
+  probabilityLeft: {'observed_values': [0.2, 0.5, 0.8], 'expected_biased_set': [0.2, 0.5, 0.8], 'subset_of_expected_biased_set': True}
+  stimulus_side_pattern: {'right': 665, 'left': 663}
+  n_both_sides_finite: 0
+  n_neither_side_finite: 0
+
+Field summaries:
+  contrastLeft: dtype=float64 missing=665/1328 unique=5
+    ibl: Contrast of left-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    value_counts: {'0.125': 140, '0.0': 138, '1.0': 134, '0.25': 130, '0.0625': 121}
+  contrastRight: dtype=float64 missing=663/1328 unique=5
+    ibl: Contrast of right-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    value_counts: {'0.0': 142, '0.0625': 135, '0.25': 135, '0.125': 129, '1.0': 124}
+  choice: dtype=float64 missing=0/1328 unique=2
+    ibl: Response ID: -1 = turn CCW / left, +1 = turn CW / right, 0 = no-go.
+    value_counts: {'-1.0': 1058, '1.0': 270}
+  feedbackType: dtype=float64 missing=0/1328 unique=2
+    ibl: Feedback sign: +1 = positive / reward (correct), -1 = negative (error or no-go), 0 = no feedback.
+    value_counts: {'1.0': 795, '-1.0': 533}
+  probabilityLeft: dtype=float64 missing=0/1328 unique=3
+    ibl: Hidden block prior: probability that the stimulus appears on the left (from stim_probability_left). Biased-choice sessions typically use {0.2, 0.5, 0.8}.
+    value_counts: {'0.2': 636, '0.8': 602, '0.5': 90}
+  stimOn_times: dtype=float64 missing=0/1328 unique=1328
+    ibl: Stimulus onset time in seconds relative to session start.
+    samples: [34.4968, 38.8418, 76.82980099999999, 86.312501, 93.7406, 97.57870100000001, 102.39030100000001, 109.195401]
+  goCue_times: dtype=float64 missing=0/1328 unique=1328
+    ibl: Go-cue tone time in seconds relative to session start.
+    samples: [34.571, 39.1506, 77.14240099999999, 86.625501, 94.0505, 97.88900100000001, 102.696601, 109.50240099999999]
+  response_times: dtype=float64 missing=0/1328 unique=1328
+    ibl: Time when a response was recorded (end of closed-loop state), in seconds relative to session start.
+    samples: [35.7049, 72.5724, 84.07380099999999, 90.450301, 94.46079999999999, 98.31540100000001, 106.10520100000001, 112.22070099999999]
+  feedback_times: dtype=float64 missing=37/1328 unique=1291
+    ibl: Time of feedback delivery (reward or error noise), in seconds relative to session start.
+    samples: [36.0072, 72.5725, 84.07390099999999, 90.762101, 94.7766, 98.315501, 106.418001, 112.53280099999999]
+  rewardVolume: dtype=float64 missing=0/1328 unique=2
+    ibl: Volume of reward delivered on each trial (µl); 0 if incorrect.
+    value_counts: {'1.5': 795, '0.0': 533}
+  firstMovement_times: dtype=float64 missing=301/1328 unique=1027
+    ibl: Time of first movement in seconds relative to session start.
+    samples: [35.49959636967342, 48.108596369688826, 83.78059636973242, 87.64059636973714, 94.20259636974517, 97.88159636974966, 106.0105963697596, 109.62259636976401]
+  intervals_0: dtype=float64 missing=0/1328 unique=1328
+    ibl: Trial start time (first column of trials.intervals).
+    samples: [30.7501, 38.285199999999996, 74.175901, 85.646801, 93.0397, 97.049001, 99.903901, 108.693501]
+  intervals_1: dtype=float64 missing=0/1328 unique=1328
+    ibl: Trial end time (second column of trials.intervals).
+    samples: [38.247003, 74.124402, 85.607403, 93.012203, 97.023802, 99.879103, 108.657003, 114.795003]
+  goCueTrigger_times: dtype=float64 missing=0/1328 unique=1328
+    ibl: Time the go-cue trigger command was sent (may precede measured goCue_times).
+    samples: [34.2486, 38.841899999999995, 76.82990099999999, 86.312601, 93.74069999999999, 97.578801, 102.39040100000001, 109.195501]
+  stimOnTrigger_times: dtype=float64 missing=0/1328 unique=1328
+    ibl: Time the stimulus-onset trigger command was sent.
+    samples: [34.1485, 38.7765, 76.766701, 86.256801, 93.6923, 97.51530100000001, 102.332901, 109.144901]
+  stimOff_times: dtype=float64 missing=0/1328 unique=1328
+    ibl: Stimulus offset time in seconds relative to session start.
+    samples: [37.747, 73.6244, 85.107401, 92.51220099999999, 96.5238, 99.379101, 108.15700100000001, 114.295001]
+  stimOffTrigger_times: dtype=float64 missing=0/1328 unique=1328
+    samples: [37.705, 73.5724, 85.07380099999999, 92.450401, 96.4609, 99.31540100000001, 108.10530100000001, 114.220801]
+  quiescencePeriod: dtype=float64 missing=0/1328 unique=1328
+    ibl: Required quiescence duration before the trial proceeds.
+    samples: [0.6497462087519765, 0.4911059310293881, 0.4770958679810309, 0.6098376344062317, 0.6524714147159043, 0.46610963829485774, 0.5119125781550042, 0.45126591181638587]
+
+Absolute contrast value counts: {'0.0': 280, '0.125': 269, '0.25': 265, '1.0': 258, '0.0625': 256}
+Signed contrast unique (rounded): [-1.0, -0.25, -0.125, -0.0625, 0.0, 0.0625, 0.125, 0.25, 1.0]
+probabilityLeft value counts: {'0.2': 636, '0.8': 602, '0.5': 90}
+RT preview (seconds): {'definition': 'project-derived: response_times - goCue_times (fallback: response_times - stimOn_times)', 'n_finite': 1328, 'n_nonpositive': 303, 'min': -0.4048999999999978, 'median': 0.18094999999993888, 'max': 33.421800000000005, 'p01': -0.32484400000006647, 'p99': 6.188443999999966}
+Event order check: {'n_complete_timing': 1291, 'n_monotonic_stim_go_resp_fb': 1027}
+
+=== Session 4eb53f24-a794-4e97-9a3f-f0a3593b3506 ===
+n_trials: 1245
+
+All trials columns:
+  - stimOff_times
+  - quiescencePeriod
+  - stimOffTrigger_times
+  - stimOnTrigger_times
+  - goCueTrigger_times
+  - goCue_times
+  - response_times
+  - choice
+  - stimOn_times
+  - contrastLeft
+  - contrastRight
+  - feedback_times
+  - feedbackType
+  - rewardVolume
+  - probabilityLeft
+  - firstMovement_times
+  - intervals_0
+  - intervals_1
+
+Core IBL fields present:
+  - contrastLeft
+  - contrastRight
+  - choice
+  - feedbackType
+  - probabilityLeft
+  - stimOn_times
+  - goCue_times
+  - response_times
+  - feedback_times
+  - rewardVolume
+  - firstMovement_times
+  - intervals_0
+  - intervals_1
+
+Core IBL fields missing:
+  (none)
+
+Optional IBL fields present:
+  - goCueTrigger_times
+  - stimOnTrigger_times
+  - stimOff_times
+  - stimOffTrigger_times
+  - quiescencePeriod
+
+Official IBL definitions (for present fields):
+  contrastLeft: Contrast of left-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    source: IBL trials ALF / ContrastLR extractor
+  contrastRight: Contrast of right-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    source: IBL trials ALF / ContrastLR extractor
+  choice: Response ID: -1 = turn CCW / left, +1 = turn CW / right, 0 = no-go.
+    source: IBL trials ALF / Choice extractor
+  feedbackType: Feedback sign: +1 = positive / reward (correct), -1 = negative (error or no-go), 0 = no feedback.
+    source: IBL trials ALF / FeedbackType extractor
+  probabilityLeft: Hidden block prior: probability that the stimulus appears on the left (from stim_probability_left). Biased-choice sessions typically use {0.2, 0.5, 0.8}.
+    source: IBL trials ALF / ProbabilityLeft; brainbox.behavior.training
+  stimOn_times: Stimulus onset time in seconds relative to session start.
+    source: IBL trials ALF
+  goCue_times: Go-cue tone time in seconds relative to session start.
+    source: IBL trials ALF / GoCueTimes extractor
+  response_times: Time when a response was recorded (end of closed-loop state), in seconds relative to session start.
+    source: IBL trials ALF / ResponseTimes extractor
+  feedback_times: Time of feedback delivery (reward or error noise), in seconds relative to session start.
+    source: IBL trials ALF / FeedbackTimes extractor
+  rewardVolume: Volume of reward delivered on each trial (µl); 0 if incorrect.
+    source: IBL trials ALF / RewardVolume extractor
+  firstMovement_times: Time of first movement in seconds relative to session start.
+    source: IBL trials ALF
+  intervals_0: Trial start time (first column of trials.intervals).
+    source: IBL trials ALF / Intervals extractor
+  intervals_1: Trial end time (second column of trials.intervals).
+    source: IBL trials ALF / Intervals extractor
+  goCueTrigger_times: Time the go-cue trigger command was sent (may precede measured goCue_times).
+    source: IBL trials ALF
+  stimOnTrigger_times: Time the stimulus-onset trigger command was sent.
+    source: IBL trials ALF
+  stimOff_times: Stimulus offset time in seconds relative to session start.
+    source: IBL trials ALF
+  quiescencePeriod: Required quiescence duration before the trial proceeds.
+    source: IBL trials ALF
+
+Project-derived encodings (NOT IBL columns; still open decisions):
+  - stimulus_right: Binary channel: 1 if stim on right (contrastRight finite), else 0. Not an IBL column.
+  - contrast_high: Binary high/low contrast split of absolute contrast. Cutoff is a project decision; IBL only stores continuous contrastLeft/Right.
+  - delay_phase: Within-trial binary phase channel for RNN event bins. Project-defined.
+  - response_window: Within-trial binary phase channel. Project-defined.
+  - response_made: Within-trial binary event at response. Project-defined.
+  - reward: Binary reward-present channel. May be derived from feedbackType==1 or rewardVolume>0; incorrect-as-separate-channel is still open.
+  - prev_choice_right: Previous-trial history channel. Project-defined.
+  - prev_correct: Previous-trial history channel. Project-defined.
+  - prev_fast_rt: Binary previous-RT summary (below session median). Project-defined; uses derived RT, not an IBL column.
+  - oracle_prior_right: Full-information oracle prior channel from probabilityLeft. Project-defined binarization of an IBL field.
+  - rt_target: Training target: response_times - goCue_times (fallback stimOn). Project-defined from IBL times.
+
+Concept → IBL column coverage:
+  [OK|raw] stimulus_side: found=['contrastLeft', 'contrastRight']
+    rule: Stim on left iff contrastLeft is finite and contrastRight is NaN; stim on right iff contrastRight is finite and contrastLeft is NaN.
+  [OK|raw] stimulus_contrast: found=['contrastLeft', 'contrastRight']
+    rule: Absolute contrast = non-NaN side value in [0, 1]. IBL also uses signed contrast = contrastRight - contrastLeft (left negative) via brainbox.behavior.training.get_signed_contrast.
+  [OK|raw] choice: found=['choice']
+    rule: -1 left / CCW, +1 right / CW, 0 no-go.
+  [OK|raw] correctness_or_reward: found=['feedbackType', 'rewardVolume']
+    rule: feedbackType +1 correct/reward, -1 error/no-go, 0 no feedback; rewardVolume > 0 only on rewarded trials.
+  [OK|raw] block_prior: found=['probabilityLeft']
+    rule: probabilityLeft is the true hidden prior P(stim left). Biased blocks typically in {0.2, 0.5, 0.8}.
+  [OK|raw] stimulus_onset: found=['stimOn_times']
+    rule: Seconds from session start.
+  [OK|raw] go_cue_response_permission: found=['goCue_times']
+    rule: Go-cue tone marks response permission.
+  [OK|raw] response_time: found=['response_times']
+    rule: Absolute session time when response was recorded.
+  [OK|raw] feedback_time: found=['feedback_times']
+    rule: Absolute session time of reward or error feedback.
+  [OK|derived] reaction_time_ingredients: found=['goCue_times', 'stimOn_times', 'response_times']
+    rule: IBL provides the ingredient times only. Project RT target is derived: response_times - goCue_times, fallback response_times - stimOn_times.
+
+Coding checks vs IBL encodings:
+  choice: {'observed_values': [-1, 1], 'expected_values': [-1, 0, 1], 'matches_ibl_encoding': True}
+  feedbackType: {'observed_values': [-1, 1], 'expected_values': [-1, 0, 1], 'matches_ibl_encoding': True}
+  probabilityLeft: {'observed_values': [0.2, 0.5, 0.8], 'expected_biased_set': [0.2, 0.5, 0.8], 'subset_of_expected_biased_set': True}
+  stimulus_side_pattern: {'left': 643, 'right': 602}
+  n_both_sides_finite: 0
+  n_neither_side_finite: 0
+
+Field summaries:
+  contrastLeft: dtype=float64 missing=602/1245 unique=5
+    ibl: Contrast of left-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    value_counts: {'0.125': 144, '0.0625': 131, '0.0': 124, '1.0': 123, '0.25': 121}
+  contrastRight: dtype=float64 missing=643/1245 unique=5
+    ibl: Contrast of right-side stimulus in [0, 1]; NaN if the stimulus is on the other side.
+    value_counts: {'0.25': 142, '0.0': 122, '1.0': 115, '0.125': 112, '0.0625': 111}
+  choice: dtype=float64 missing=0/1245 unique=2
+    ibl: Response ID: -1 = turn CCW / left, +1 = turn CW / right, 0 = no-go.
+    value_counts: {'1.0': 779, '-1.0': 466}
+  feedbackType: dtype=float64 missing=0/1245 unique=2
+    ibl: Feedback sign: +1 = positive / reward (correct), -1 = negative (error or no-go), 0 = no feedback.
+    value_counts: {'1.0': 825, '-1.0': 420}
+  probabilityLeft: dtype=float64 missing=0/1245 unique=3
+    ibl: Hidden block prior: probability that the stimulus appears on the left (from stim_probability_left). Biased-choice sessions typically use {0.2, 0.5, 0.8}.
+    value_counts: {'0.8': 606, '0.2': 549, '0.5': 90}
+  stimOn_times: dtype=float64 missing=0/1245 unique=1245
+    ibl: Stimulus onset time in seconds relative to session start.
+    samples: [35.85980000000001, 40.1544, 42.9261, 46.754400000000004, 49.537600000000005, 53.29260000000001, 56.1208, 59.7593]
+  goCue_times: dtype=float64 missing=0/1245 unique=1245
+    ibl: Go-cue tone time in seconds relative to session start.
+    samples: [35.868900000000004, 40.4605, 43.2329, 47.0613, 49.8447, 53.6011, 56.4305, 60.066]
+  response_times: dtype=float64 missing=0/1245 unique=1245
+    ibl: Time when a response was recorded (end of closed-loop state), in seconds relative to session start.
+    samples: [36.846700000000006, 40.880700000000004, 43.5428, 47.4386, 50.0462, 53.8025, 56.6152, 60.2614]
+  feedback_times: dtype=float64 missing=88/1245 unique=1157
+    ibl: Time of feedback delivery (reward or error noise), in seconds relative to session start.
+    samples: [36.8468, 40.8808, 43.8519, 47.438700000000004, 50.354800000000004, 53.802600000000005, 56.9256, 60.580000000000005]
+  rewardVolume: dtype=float64 missing=0/1245 unique=2
+    ibl: Volume of reward delivered on each trial (µl); 0 if incorrect.
+    value_counts: {'1.5': 825, '0.0': 420}
+  firstMovement_times: dtype=float64 missing=595/1245 unique=650
+    ibl: Time of first movement in seconds relative to session start.
+    samples: [35.771810202148174, 40.57781020215405, 43.35881020215744, 47.17481020216211, 49.932810202165484, 53.648810202170026, 56.4918102021735, 60.13881020217796]
+  intervals_0: dtype=float64 missing=0/1245 unique=1245
+    ibl: Trial start time (first column of trials.intervals).
+    samples: [31.927800000000005, 38.4288, 42.4508, 46.134100000000004, 49.0174, 52.612700000000004, 55.4005, 59.1786]
+  intervals_1: dtype=float64 missing=0/1245 unique=1245
+    ibl: Trial end time (second column of trials.intervals).
+    samples: [38.393102, 42.421002, 46.108902, 48.992702, 52.587502, 55.376202, 59.154102, 62.808602]
+  goCueTrigger_times: dtype=float64 missing=0/1245 unique=1245
+    ibl: Time the go-cue trigger command was sent (may precede measured goCue_times).
+    samples: [35.614200000000004, 40.154500000000006, 42.9262, 46.75450000000001, 49.5377, 53.2927, 56.1209, 59.7594]
+  stimOnTrigger_times: dtype=float64 missing=0/1245 unique=1245
+    ibl: Time the stimulus-onset trigger command was sent.
+    samples: [35.514100000000006, 40.081900000000005, 42.8739, 46.701100000000004, 49.475500000000004, 53.2381, 56.0623, 59.6907]
+  stimOff_times: dtype=float64 missing=0/1245 unique=1245
+    ibl: Stimulus offset time in seconds relative to session start.
+    samples: [37.893100000000004, 41.921, 45.6089, 48.492700000000006, 52.087500000000006, 54.876200000000004, 58.6541, 62.308600000000006]
+  stimOffTrigger_times: dtype=float64 missing=0/1245 unique=1245
+    samples: [37.846700000000006, 41.880700000000004, 45.5429, 48.4386, 52.0463, 54.8025, 58.615300000000005, 62.261500000000005]
+  quiescencePeriod: dtype=float64 missing=0/1245 unique=1245
+    ibl: Required quiescence duration before the trial proceeds.
+    samples: [0.6337640935754587, 0.4145099784003028, 0.42297899115864535, 0.5668974702830762, 0.4579396880828857, 0.6252249161396544, 0.6616686687072685, 0.5119168995462754]
+
+Absolute contrast value counts: {'0.25': 263, '0.125': 256, '0.0': 246, '0.0625': 242, '1.0': 238}
+Signed contrast unique (rounded): [-1.0, -0.25, -0.125, -0.0625, 0.0, 0.0625, 0.125, 0.25, 1.0]
+probabilityLeft value counts: {'0.8': 606, '0.2': 549, '0.5': 90}
+RT preview (seconds): {'definition': 'project-derived: response_times - goCue_times (fallback: response_times - stimOn_times)', 'n_finite': 1245, 'n_nonpositive': 674, 'min': -0.4117999999999995, 'median': -0.020000000000436557, 'max': 3.7314999999999827, 'p01': -0.40005599999994956, 'p99': 1.7597440000000018}
+Event order check: {'n_complete_timing': 1157, 'n_monotonic_stim_go_resp_fb': 571}

@@ -1,0 +1,60 @@
+{
+  "created_utc": "2026-07-21T22:55:31.574643+00:00",
+  "history_only_ranking": [
+    {
+      "created_utc": "2026-07-21T22:55:31.574643+00:00",
+      "model": "standard",
+      "condition": "history_only",
+      "run_name": "default",
+      "checkpoint": "/Users/shivamahdian/Desktop/Performance/artifacts/models/standard/history_only/default.pt",
+      "best_epoch": 12,
+      "val_choice_nll": 0.247380445626649,
+      "val_rt_nll": -0.956137592819604,
+      "val_choice_acc": 0.8875365141187926,
+      "val_loss": 0.05615292489528656,
+      "train_choice_nll": 0.2619106867846022,
+      "train_rt_nll": -1.3102674243297983,
+      "hidden_size": 64,
+      "lr": 0.001,
+      "lambda_rt": 0.2
+    },
+    {
+      "created_utc": "2026-07-21T22:55:31.574643+00:00",
+      "model": "pc",
+      "condition": "history_only",
+      "run_name": "default",
+      "checkpoint": "/Users/shivamahdian/Desktop/Performance/artifacts/models/pc/history_only/default.pt",
+      "best_epoch": 10,
+      "val_choice_nll": 0.2892875323692958,
+      "val_rt_nll": -0.291324116741166,
+      "val_choice_acc": 0.8704965920155794,
+      "val_loss": 0.23102270766641153,
+      "train_choice_nll": 0.28043760470253354,
+      "train_rt_nll": -0.5271964550335356,
+      "hidden_size": 64,
+      "lr": 0.001,
+      "lambda_rt": 0.2
+    },
+    {
+      "created_utc": "2026-07-21T22:55:31.574643+00:00",
+      "model": "bayes",
+      "condition": "history_only",
+      "run_name": "default",
+      "checkpoint": "/Users/shivamahdian/Desktop/Performance/artifacts/models/bayes/history_only/default.pt",
+      "best_epoch": 12,
+      "val_choice_nll": 0.551679660876592,
+      "val_rt_nll": 1.5151471983302722,
+      "val_choice_acc": 0.7419668938656281,
+      "val_loss": 0.8547091104767539,
+      "train_choice_nll": 0.5586621897651795,
+      "train_rt_nll": 1.2902389771126686,
+      "hidden_size": 64,
+      "lr": 0.001,
+      "lambda_rt": 0.2
+    }
+  ],
+  "best_val_choice_nll": 0.247380445626649,
+  "provisional_choice_epsilon": 0.05,
+  "provisional_rt_secondary_floor": 2.015147198330272,
+  "note": "Epsilon/RT floor are provisional from this Phase 5 cohort; written into frozen_v1.yaml for later behavior-matched neural compare."
+}

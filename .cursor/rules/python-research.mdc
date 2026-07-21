@@ -1,0 +1,46 @@
+---
+description: Python research engineering conventions for this repository.
+globs: ["src/**/*.py", "notebooks/**/*.ipynb", "scripts/**/*.py"]
+---
+
+# Stack
+
+- Python
+- PyTorch for models
+- NumPy / pandas / scikit-learn where appropriate
+- Matplotlib or seaborn for standard figures unless otherwise specified
+
+# Code organization
+
+Prefer this structure:
+- src/data/ for loading and preprocessing
+- src/models/ for model definitions
+- src/train/ for training loops
+- src/eval/ for behavioral metrics
+- src/neural/ for neural alignment analyses
+- src/plot/ for figure code
+- scripts/ for entry points
+
+# Engineering rules
+
+- Keep functions small and single-purpose.
+- Avoid giant notebooks as the system of record.
+- Put reusable logic in src/, not only in notebooks.
+- Every major analysis should be reproducible from a script.
+- Use config files or dataclasses for experiment settings.
+- Do not bury assumptions in magic constants.
+- Add docstrings to public functions.
+- Save intermediate outputs with explicit names.
+
+# Modeling rules
+
+- Standardize the input/output contract across the three model classes.
+- Keep evaluation code model-agnostic where possible.
+- Separate training-time code from analysis-time code.
+- Make latent extraction an explicit interface for each model.
+
+# Analysis rules
+
+- Behavior and neural analyses should each have standalone evaluation entry points.
+- Switch-centered analyses should use clearly parameterized windows.
+- Any behavior-matched neural comparison must explicitly document the matching criterion.

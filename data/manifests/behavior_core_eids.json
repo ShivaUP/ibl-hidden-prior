@@ -1,0 +1,214 @@
+{
+  "created_utc": "2026-07-21T01:16:10.097535+00:00",
+  "config_version": "frozen_v1",
+  "n_candidates": 25,
+  "n_passed": 15,
+  "n_core": 10,
+  "gates": {
+    "min_choice_trials": 400,
+    "min_fraction_pre": 0.95,
+    "min_fraction_post": 0.9,
+    "rt_percentile_trim": [
+      1,
+      99
+    ]
+  },
+  "eids": [
+    "30ca9591-14d3-493c-8b9c-ae13ae8246d9",
+    "257ec2b8-6e8d-4b98-99de-a232b58fde2c",
+    "0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b",
+    "76edf716-f3c5-4823-95f3-9d37ed9cbeae",
+    "da665ec4-445d-4d7e-a0dd-b3b156213754",
+    "a15c8461-1899-4477-9f2b-d60ea52d7cba",
+    "edf88809-e5e3-4274-a74e-72d2975ea292",
+    "b052b9d7-3bfa-4d23-b195-99cfbd3f467c",
+    "81f90b18-e61c-4d32-bbce-3e0c5f33f06c",
+    "ba892860-149e-4bff-9961-aa6583d96661"
+  ],
+  "per_eid": [
+    {
+      "eid": "30ca9591-14d3-493c-8b9c-ae13ae8246d9",
+      "n_choice_trials": 1196,
+      "fraction_pass_rules_1_to_4": 0.9991638795986622,
+      "fraction_after_rt_trim": 0.9790969899665551,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "257ec2b8-6e8d-4b98-99de-a232b58fde2c",
+      "n_choice_trials": 690,
+      "fraction_pass_rules_1_to_4": 0.9985507246376811,
+      "fraction_after_rt_trim": 0.9782608695652174,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b",
+      "n_choice_trials": 956,
+      "fraction_pass_rules_1_to_4": 0.9989539748953975,
+      "fraction_after_rt_trim": 0.9780334728033473,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "76edf716-f3c5-4823-95f3-9d37ed9cbeae",
+      "n_choice_trials": 1409,
+      "fraction_pass_rules_1_to_4": 0.9992902767920511,
+      "fraction_after_rt_trim": 0.9779985805535841,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "da665ec4-445d-4d7e-a0dd-b3b156213754",
+      "n_choice_trials": 954,
+      "fraction_pass_rules_1_to_4": 0.9989517819706499,
+      "fraction_after_rt_trim": 0.9779874213836478,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "a15c8461-1899-4477-9f2b-d60ea52d7cba",
+      "n_choice_trials": 947,
+      "fraction_pass_rules_1_to_4": 0.9989440337909187,
+      "fraction_after_rt_trim": 0.9778247096092925,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "edf88809-e5e3-4274-a74e-72d2975ea292",
+      "n_choice_trials": 1020,
+      "fraction_pass_rules_1_to_4": 0.9990196078431373,
+      "fraction_after_rt_trim": 0.9774509803921568,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "b052b9d7-3bfa-4d23-b195-99cfbd3f467c",
+      "n_choice_trials": 841,
+      "fraction_pass_rules_1_to_4": 0.9988109393579072,
+      "fraction_after_rt_trim": 0.9774078478002378,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "81f90b18-e61c-4d32-bbce-3e0c5f33f06c",
+      "n_choice_trials": 911,
+      "fraction_pass_rules_1_to_4": 0.9989023051591658,
+      "fraction_after_rt_trim": 0.9769484083424808,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    },
+    {
+      "eid": "ba892860-149e-4bff-9961-aa6583d96661",
+      "n_choice_trials": 904,
+      "fraction_pass_rules_1_to_4": 0.9988938053097345,
+      "fraction_after_rt_trim": 0.9767699115044248,
+      "probability_left_values": [
+        0.2,
+        0.5,
+        0.8
+      ],
+      "absolute_contrast_levels": [
+        0.0,
+        0.0625,
+        0.125,
+        0.25,
+        1.0
+      ]
+    }
+  ],
+  "notes": [
+    "Almost-perfect sessions only.",
+    "Re-run scripts/run_session_qc.py to refresh."
+  ]
+}

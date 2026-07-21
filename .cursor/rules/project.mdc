@@ -1,0 +1,54 @@
+---
+description: Core project context and mandatory workflow for the IBL hidden-prior modeling project.
+alwaysApply: true
+---
+
+# Project context
+
+This repository is for a neuroscience/AI research project on latent prior updating in the International Brain Laboratory decision task.
+
+Primary scientific question:
+- Which model best explains the mouse's trial-by-trial updating of a hidden block prior:
+  1. a standard task-trained RNN,
+  2. a meta-RL RNN,
+  3. a predictive-coding / explicit online inference model?
+
+Primary goals:
+- Reproduce behavior:
+  - choice probability,
+  - psychometric shifts,
+  - reaction-time changes,
+  - switch-centered updating around hidden-prior block transitions.
+- Compare inferred latent prior dynamics in a history-only condition.
+- Compare model latent dynamics to neural population dynamics in prior-related regions such as MOs and vlOFC.
+- Test whether any neural advantage survives after models are matched on behavior.
+
+# Workflow rules
+
+Before writing implementation code:
+1. Run a grilling phase to clarify the project.
+2. Produce a compact project spec in the repo.
+3. Only then scaffold code.
+
+Never jump directly into training code when the experimental design is still ambiguous.
+
+# Non-negotiables
+
+- Favor clarity and reproducibility over premature optimization.
+- Make all comparisons behavior-matched where possible.
+- Separate behavioral evaluation from neural alignment evaluation.
+- Keep assumptions explicit.
+- Document unresolved questions instead of hiding them in code.
+- Prefer small, testable modules.
+
+# Expected deliverables
+
+The repository should eventually support:
+- dataset preparation,
+- model training,
+- behavioral evaluation,
+- switch-centered analyses,
+- latent-state extraction,
+- neural alignment analyses,
+- figure generation,
+- concise documentation of decisions and assumptions.

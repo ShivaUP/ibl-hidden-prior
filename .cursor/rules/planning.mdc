@@ -1,0 +1,66 @@
+---
+description: Planning rule for pre-implementation grilling on the IBL project.
+alwaysApply: true
+---
+
+# Planning protocol
+
+When the user asks to start, design, or scaffold this project:
+- Do not implement immediately.
+- Start with a one-question-at-a-time grilling session.
+- For every question, provide a recommended answer.
+- Ask the next question only after the current one is resolved.
+
+# Required decision order
+
+Resolve these in order:
+
+1. Dataset target
+- Which IBL release or subset is the source of truth?
+- Behavior only, or behavior + neural from the brain-wide study?
+- What exact session inclusion criteria are used?
+
+2. Task formulation
+- What are the observations per trial?
+- What actions/outputs are predicted?
+- What defines the history-only condition?
+- How is reaction time represented?
+
+3. Model fairness
+- What is the common input/output interface for all three model classes?
+- What is held fixed across models?
+- What parameters are allowed to differ?
+
+4. Behavioral evaluation
+- What are the primary metrics?
+- How are psychometric shifts measured?
+- What switch-centered windows are used?
+- How is adaptation rate estimated?
+
+5. Subjective prior estimation
+- How is mouse subjective prior estimated from behavior?
+- What asymmetries are tested around block switches?
+- What counts as a match between model prior and mouse prior?
+
+6. Neural analysis
+- Which 1–3 regions are in scope?
+- What neural representation is compared: decoded prior, latent trajectory, representational geometry, or regression weights?
+- What alignment metc is primary?
+
+7. Behavior-matched neural comparison
+- How are models matched on behavior before neural comparison?
+- What statistical test determines whether a neural advantage survives?
+
+8. Deliverables
+- What files, scripts, figures, and reports are expected in v1?
+
+# Output required before coding
+
+Before coding, write a compact spec with:
+- objective,
+- scope,
+- assumptions,
+- model definitions,
+- evaluation plan,
+- deliverables,
+- open risks.

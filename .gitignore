@@ -1,0 +1,72 @@
+# --- Python / env ---
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.so
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- Cursor local (keep shared rules under .cursor/rules if desired) ---
+# Uncomment to omit all Cursor metadata from the public repo:
+# .cursor/
+
+# --- Secrets / local overrides ---
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json
+
+# --- Large / regenerable data (do NOT commit) ---
+# ONE/Alyx download cache and raw ALF
+data/raw/
+# Processed trials, RNN bins, Bayesian tables, neural matrices
+data/processed/
+# Keep data/manifests/ (small eid lists + splits) — tracked intentionally
+
+# --- Model checkpoints & smoke outputs (regenerate via training scripts) ---
+artifacts/
+*.pt
+*.ckpt
+*.pth
+
+# --- Local scratch ---
+tmp/
+temp/
+/tmp/
+*.log
+*.tmp
+
+# --- Notebooks checkpoints ---
+.ipynb_checkpoints/
+
+# --- Optional: large binary dumps if any slip outside data/ ---
+*.pkl
+*.pickle
+*.npy
+*.npz
+*.parquet
+*.h5
+*.hdf5
+
+# Allow small tracked examples under tests/fixtures if added later
+!tests/fixtures/**/*.npy
+!tests/fixtures/**/*.parquet
