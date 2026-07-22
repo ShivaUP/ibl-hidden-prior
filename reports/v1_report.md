@@ -101,14 +101,15 @@ Artifacts: `reports/neural/behavior_matched_models.json`, `ve_matched.csv`, `ve_
 
 ## 6. Reproduce
 
+> **Note (v2):** The phase eval scripts below were **removed** when the repo switched to the numbered v2 pipeline (`scripts/00_`…`10_`). Metrics and figures already under `reports/` remain valid historical artifacts. Active work: see `scripts/README.md`.
+
 ```bash
-cd /Users/shivamahdian/Desktop/Performance && source .venv/bin/activate
-python -m pytest tests/ -q
-python scripts/eval_phase6.py
-python scripts/eval_phase7_priors.py
-python scripts/eval_phase8_neural_pilot.py
-python scripts/eval_phase9_matched.py
-python scripts/make_phase10_figures.py
+# Historical (scripts no longer in repo):
+# python scripts/eval_phase6.py
+# python scripts/eval_phase7_priors.py
+# python scripts/eval_phase8_neural_pilot.py
+# python scripts/eval_phase9_matched.py
+# python scripts/make_phase10_figures.py
 ```
 
 Manifests: `data/manifests/behavior_core_eids.json`, `neural_intersect_eids.json`, `splits.json`

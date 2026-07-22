@@ -1,0 +1,91 @@
+{
+  "stage": "real_transfer",
+  "model_id": "gru",
+  "n_sessions": 10,
+  "acc_vs_correct_side": 0.826977398721756,
+  "acc_vs_mouse_choice": 0.7591382383718341,
+  "ce_vs_correct_side": 0.34615951200226275,
+  "ce_vs_mouse_choice": 0.6217226947384942,
+  "per_session": [
+    {
+      "n_trials": 1171,
+      "acc_vs_correct_side": 0.8394534585824082,
+      "acc_vs_mouse_choice": 0.7566182749786508,
+      "ce_vs_correct_side": 0.3334508100541887,
+      "ce_vs_mouse_choice": 0.6073655173091571,
+      "eid": "30ca9591-14d3-493c-8b9c-ae13ae8246d9"
+    },
+    {
+      "n_trials": 675,
+      "acc_vs_correct_side": 0.8474074074074074,
+      "acc_vs_mouse_choice": 0.7022222222222222,
+      "ce_vs_correct_side": 0.3251904236924921,
+      "ce_vs_mouse_choice": 0.6195383631159053,
+      "eid": "257ec2b8-6e8d-4b98-99de-a232b58fde2c"
+    },
+    {
+      "n_trials": 935,
+      "acc_vs_correct_side": 0.8213903743315508,
+      "acc_vs_mouse_choice": 0.7529411764705882,
+      "ce_vs_correct_side": 0.34480323181071865,
+      "ce_vs_mouse_choice": 0.8521440942769175,
+      "eid": "0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b"
+    },
+    {
+      "n_trials": 1378,
+      "acc_vs_correct_side": 0.8323657474600871,
+      "acc_vs_mouse_choice": 0.8105950653120464,
+      "ce_vs_correct_side": 0.34625735534293217,
+      "ce_vs_mouse_choice": 0.4167984778019992,
+      "eid": "76edf716-f3c5-4823-95f3-9d37ed9cbeae"
+    },
+    {
+      "n_trials": 933,
+      "acc_vs_correct_side": 0.8338692390139335,
+      "acc_vs_mouse_choice": 0.7534833869239014,
+      "ce_vs_correct_side": 0.34309445361111957,
+      "ce_vs_mouse_choice": 0.7755884943749671,
+      "eid": "da665ec4-445d-4d7e-a0dd-b3b156213754"
+    },
+    {
+      "n_trials": 926,
+      "acc_vs_correct_side": 0.8110151187904968,
+      "acc_vs_mouse_choice": 0.7451403887688985,
+      "ce_vs_correct_side": 0.3591553211016118,
+      "ce_vs_mouse_choice": 0.6696414082792825,
+      "eid": "a15c8461-1899-4477-9f2b-d60ea52d7cba"
+    },
+    {
+      "n_trials": 997,
+      "acc_vs_correct_side": 0.8465396188565697,
+      "acc_vs_mouse_choice": 0.7051153460381143,
+      "ce_vs_correct_side": 0.3269801059022849,
+      "ce_vs_mouse_choice": 0.8601512234663946,
+      "eid": "edf88809-e5e3-4274-a74e-72d2975ea292"
+    },
+    {
+      "n_trials": 822,
+      "acc_vs_correct_side": 0.8223844282238443,
+      "acc_vs_mouse_choice": 0.7895377128953771,
+      "ce_vs_correct_side": 0.35203836226884333,
+      "ce_vs_mouse_choice": 0.42973383122561964,
+      "eid": "b052b9d7-3bfa-4d23-b195-99cfbd3f467c"
+    },
+    {
+      "n_trials": 890,
+      "acc_vs_correct_side": 0.8067415730337079,
+      "acc_vs_mouse_choice": 0.8044943820224719,
+      "ce_vs_correct_side": 0.36024071494083093,
+      "ce_vs_mouse_choice": 0.4664171442780579,
+      "eid": "81f90b18-e61c-4d32-bbce-3e0c5f33f06c"
+    },
+    {
+      "n_trials": 883,
+      "acc_vs_correct_side": 0.8086070215175538,
+      "acc_vs_mouse_choice": 0.7712344280860702,
+      "ce_vs_correct_side": 0.3703843412976047,
+      "ce_vs_mouse_choice": 0.5198483932566413,
+      "eid": "ba892860-149e-4bff-9961-aa6583d96661"
+    }
+  ]
+}

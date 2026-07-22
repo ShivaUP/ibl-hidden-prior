@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Phase 1: search candidate eids, score QC, pin almost-perfect behavior-core.
+"""01 — Search candidate eids, score QC, pin behavior-core eid list.
 
 Usage:
-    python scripts/run_session_qc.py
-    python scripts/run_session_qc.py --n-candidates 30 --max-core 10
+  python scripts/01_run_session_qc.py
+  python scripts/01_run_session_qc.py --n-candidates 30 --max-core 10
 """
 
 from __future__ import annotations
@@ -188,7 +188,7 @@ def main() -> int:
         ],
         "notes": [
             "Almost-perfect sessions only.",
-            "Re-run scripts/run_session_qc.py to refresh.",
+            "Re-run scripts/01_run_session_qc.py to refresh.",
         ],
     }
     core_path = manifest_dir / "behavior_core_eids.json"

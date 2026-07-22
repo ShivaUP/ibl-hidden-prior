@@ -1,0 +1,11 @@
+{
+  "stage": "synth_heldout",
+  "model_id": "tanh_pc",
+  "accuracy": 0.7167653390742734,
+  "cross_entropy": 0.5100629793283602,
+  "acc_block_0.2": 0.8140004487323311,
+  "acc_block_0.5": 0.7228327228327228,
+  "acc_block_0.8": 0.627760038046063,
+  "zero_contrast_p_right_mean": 0.5911783951151771,
+  "zero_contrast_n": 5780
+}

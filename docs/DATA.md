@@ -6,9 +6,9 @@ This repository **does not** ship raw IBL downloads, processed tensors, or train
 
 | Path | Why |
 |---|---|
-| `data/manifests/` | Session eid lists, QC scores, train/val/test splits |
-| `configs/` | Frozen v1 encodings and matching rules |
-| `reports/` | Tables, figures, and the v1 write-up |
+| `data/manifests/` | Session eid lists, QC scores, synth stats |
+| `configs/` | `synthetic_v2.yaml`, frozen encodings |
+| `reports/` | v1 write-up (historical); v2 metrics/figures after runs |
 | `src/`, `scripts/`, `tests/` | Code |
 
 ## What is ignored
@@ -16,40 +16,33 @@ This repository **does not** ship raw IBL downloads, processed tensors, or train
 | Path | Approx size locally | Rebuild |
 |---|---|---|
 | `data/raw/` | ~GBs (ONE cache) | automatic on first download |
-| `data/processed/` | tens of MB | `python scripts/build_processed_datasets.py` |
-| `artifacts/` | checkpoints | `python scripts/train_phase5.py` |
+| `data/processed/` | tens of MB+ | `03_build_processed_trials.py`, `05_…`, `06_…` |
+| `artifacts/` | checkpoints | `07_train_model.py` |
 | `.venv/` | ~GBs | recreate from `requirements.txt` |
 
-## Minimal online → local path
+## Rebuild (v2)
+
+See [`scripts/README.md`](../scripts/README.md) for the full numbered catalog.
 
 ```bash
-git clone https://github.com/ShivaUP/ibl-hidden-prior.git
-cd ibl-hidden-prior
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
-# Phase 1: QC + pin behavior-core (downloads via openalyx)
-python scripts/run_session_qc.py
-
-# Phase 3: processed trials / RNN bins / Bayes tables
-python scripts/build_processed_datasets.py
-
-# Phase 5–10: train, eval, figures (see reports/v1_report.md)
-python scripts/train_phase5.py --conditions history_only
-python scripts/eval_phase6.py
-python scripts/eval_phase7_priors.py
-# neural optional:
-# python scripts/build_neural_intersect.py --max-qc 30
-# python scripts/eval_phase8_neural_pilot.py
-python scripts/eval_phase9_matched.py
-python scripts/make_phase10_figures.py
+source .venv/bin/activate
+python scripts/00_smoke_one_connection.py
+python scripts/01_run_session_qc.py
+python scripts/02_audit_event_deltas.py
+python scripts/03_build_processed_trials.py
+python scripts/04_fit_synthetic_stats.py
+python scripts/05_build_synthetic_datasets.py
+python scripts/06_map_real_to_v2_ticks.py
+python scripts/07_train_model.py --all
+python scripts/08_eval_synth_heldout.py
+python scripts/09_eval_real_transfer.py
+python scripts/10_make_figures.py
 ```
 
-Public ONE endpoint (no personal Alyx account required for open data):
+Manifests: `behavior_core_eids.json`, `synthetic_stats_v2.json`, `synthetic_datasets_v2.json`, `real_v2_ticks.json`.
 
-`https://openalyx.internationalbrainlab.org` (password `international` — already used in scripts).
+Public ONE endpoint: `https://openalyx.internationalbrainlab.org` (password `international` — used in scripts).
 
-## Note on neural analyses
+## Legacy v1
 
-Strict `behavior-core ∩ ephys` was empty; neural results use `neural_behavior_pool` in `data/manifests/neural_intersect_eids.json`. Spike downloads are large and stay under `data/raw/`.
+v1 mouse-supervised / neural scripts were **removed** from `scripts/`. Historical tables and figures remain under `reports/` (`v1_report.md`, `v1_artifact_index.md`). Neural analyses are **out of v2** success criteria.

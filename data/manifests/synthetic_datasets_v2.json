@@ -1,0 +1,20 @@
+{
+  "created_utc": "2026-07-22T01:18:03.320417+00:00",
+  "rebuild": [
+    "python scripts/04_fit_synthetic_stats.py",
+    "python scripts/05_build_synthetic_datasets.py"
+  ],
+  "outputs": {
+    "heldout": "data/processed/synthetic_v2/heldout_sessions.npz",
+    "train_pool_meta": "data/processed/synthetic_v2/train_pool_meta.npz",
+    "meta": "data/processed/synthetic_v2/dataset_meta.json"
+  },
+  "phase": {
+    "baseline": 2,
+    "go_offset": 0,
+    "response_from_go": 4,
+    "feedback": 2,
+    "stim_duration": 15,
+    "n_steps": 9
+  }
+}

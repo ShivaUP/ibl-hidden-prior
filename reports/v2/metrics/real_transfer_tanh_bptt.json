@@ -1,0 +1,91 @@
+{
+  "stage": "real_transfer",
+  "model_id": "tanh_bptt",
+  "n_sessions": 10,
+  "acc_vs_correct_side": 0.8171914240873244,
+  "acc_vs_mouse_choice": 0.7540431038985769,
+  "ce_vs_correct_side": 0.35515419678832705,
+  "ce_vs_mouse_choice": 0.5943045314474548,
+  "per_session": [
+    {
+      "n_trials": 1171,
+      "acc_vs_correct_side": 0.8249359521776259,
+      "acc_vs_mouse_choice": 0.7643040136635354,
+      "ce_vs_correct_side": 0.3424920477900867,
+      "ce_vs_mouse_choice": 0.5674584585976067,
+      "eid": "30ca9591-14d3-493c-8b9c-ae13ae8246d9"
+    },
+    {
+      "n_trials": 675,
+      "acc_vs_correct_side": 0.845925925925926,
+      "acc_vs_mouse_choice": 0.7007407407407408,
+      "ce_vs_correct_side": 0.3316094730961849,
+      "ce_vs_mouse_choice": 0.6213173248106029,
+      "eid": "257ec2b8-6e8d-4b98-99de-a232b58fde2c"
+    },
+    {
+      "n_trials": 935,
+      "acc_vs_correct_side": 0.8149732620320855,
+      "acc_vs_mouse_choice": 0.7443850267379679,
+      "ce_vs_correct_side": 0.35325691445971624,
+      "ce_vs_mouse_choice": 0.7775979180955422,
+      "eid": "0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b"
+    },
+    {
+      "n_trials": 1378,
+      "acc_vs_correct_side": 0.8243831640058055,
+      "acc_vs_mouse_choice": 0.8026124818577649,
+      "ce_vs_correct_side": 0.3555466229589671,
+      "ce_vs_mouse_choice": 0.41798348688463977,
+      "eid": "76edf716-f3c5-4823-95f3-9d37ed9cbeae"
+    },
+    {
+      "n_trials": 933,
+      "acc_vs_correct_side": 0.8285101822079314,
+      "acc_vs_mouse_choice": 0.7545551982851019,
+      "ce_vs_correct_side": 0.35307073100614356,
+      "ce_vs_mouse_choice": 0.7117725879894845,
+      "eid": "da665ec4-445d-4d7e-a0dd-b3b156213754"
+    },
+    {
+      "n_trials": 926,
+      "acc_vs_correct_side": 0.796976241900648,
+      "acc_vs_mouse_choice": 0.7462203023758099,
+      "ce_vs_correct_side": 0.36702685643200234,
+      "ce_vs_mouse_choice": 0.6245404344990807,
+      "eid": "a15c8461-1899-4477-9f2b-d60ea52d7cba"
+    },
+    {
+      "n_trials": 997,
+      "acc_vs_correct_side": 0.8345035105315948,
+      "acc_vs_mouse_choice": 0.7051153460381143,
+      "ce_vs_correct_side": 0.33645959254170754,
+      "ce_vs_mouse_choice": 0.7966329242017846,
+      "eid": "edf88809-e5e3-4274-a74e-72d2975ea292"
+    },
+    {
+      "n_trials": 822,
+      "acc_vs_correct_side": 0.8077858880778589,
+      "acc_vs_mouse_choice": 0.7749391727493917,
+      "ce_vs_correct_side": 0.36414901116596304,
+      "ce_vs_mouse_choice": 0.44265497307346424,
+      "eid": "b052b9d7-3bfa-4d23-b195-99cfbd3f467c"
+    },
+    {
+      "n_trials": 890,
+      "acc_vs_correct_side": 0.7955056179775281,
+      "acc_vs_mouse_choice": 0.7865168539325843,
+      "ce_vs_correct_side": 0.370889273722721,
+      "ce_vs_mouse_choice": 0.46641416993478746,
+      "eid": "81f90b18-e61c-4d32-bbce-3e0c5f33f06c"
+    },
+    {
+      "n_trials": 883,
+      "acc_vs_correct_side": 0.79841449603624,
+      "acc_vs_mouse_choice": 0.7610419026047565,
+      "ce_vs_correct_side": 0.37704144470977874,
+      "ce_vs_mouse_choice": 0.516673036387554,
+      "eid": "ba892860-149e-4bff-9961-aa6583d96661"
+    }
+  ]
+}

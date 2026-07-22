@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Phase 2.1: event-delta audit for behavior-core sessions.
+"""02 — Event-delta audit for behavior-core sessions (feeds phase-tick fitting).
 
 Writes reports/inspection/event_deltas.md and event_deltas.json.
+
+Usage:
+  python scripts/02_audit_event_deltas.py
 """
 
 from __future__ import annotations

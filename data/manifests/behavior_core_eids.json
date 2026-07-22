@@ -209,6 +209,6 @@
   ],
   "notes": [
     "Almost-perfect sessions only.",
-    "Re-run scripts/run_session_qc.py to refresh."
+    "Re-run scripts/01_run_session_qc.py to refresh."
   ]
 }

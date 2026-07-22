@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Phase 1.1: ONE connectivity smoke test (one public eid)."""
+"""00 — ONE connectivity smoke test (one public eid).
+
+Usage:
+  python scripts/00_smoke_one_connection.py
+"""
 
 from __future__ import annotations
 

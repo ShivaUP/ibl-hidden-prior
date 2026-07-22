@@ -1,0 +1,16 @@
+{
+  "figures": [
+    "reports/v2/figures/by_model/tanh_bptt/multipanel_diagnostics.png",
+    "reports/v2/figures/by_model/tanh_pc/multipanel_diagnostics.png",
+    "reports/v2/figures/by_model/gru/multipanel_diagnostics.png",
+    "reports/v2/figures/by_model/bayes/multipanel_diagnostics.png",
+    "reports/v2/figures/comparison/synth_heldout_accuracy.png",
+    "reports/v2/figures/comparison/real_transfer_accuracy.png"
+  ],
+  "regenerate": "python scripts/10_make_figures.py",
+  "notes": {
+    "by_model/*/multipanel_diagnostics.png": "Panels: train curve, psychometric-by-block, switch zero-contrast belief, example session prior vs belief (Kyan-style).",
+    "comparison/synth_heldout_accuracy.png": "Primary synth ranking.",
+    "comparison/real_transfer_accuracy.png": "Secondary transfer: correct-side vs mouse-choice."
+  }
+}

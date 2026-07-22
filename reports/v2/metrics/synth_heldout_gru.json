@@ -1,0 +1,11 @@
+{
+  "stage": "synth_heldout",
+  "model_id": "gru",
+  "accuracy": 0.8128363832077503,
+  "cross_entropy": 0.39564594605132836,
+  "acc_block_0.2": 0.8208062224216588,
+  "acc_block_0.5": 0.7051282051282052,
+  "acc_block_0.8": 0.8175827162171343,
+  "zero_contrast_p_right_mean": 0.4865212936829175,
+  "zero_contrast_n": 5780
+}
