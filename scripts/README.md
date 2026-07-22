@@ -11,12 +11,11 @@ All user-facing entrypoints are numbered. Run in order unless a later step’s i
 | 04 | `04_fit_synthetic_stats.py` | Empirical synth stats + `configs/synthetic_v2.yaml` |
 | 05 | `05_build_synthetic_datasets.py` | Sample synth train pool + held-out |
 | 06 | `06_map_real_to_v2_ticks.py` | Real trials → shared tick tensors |
-| 07 | `07_train_model.py` | Train `tanh_bptt` / `tanh_pc` / `gru` / `bayes` (`--all`). Full empirical-length sessions; truncated BPTT chunks. Default **60×24×929 ≈ 1.34M** trial-exposures (~3.9× Kyan). |
-
-
-| 08 | `08_eval_synth_heldout.py` | **Primary** closed-loop synth ranking |
-| 09 | `09_eval_real_transfer.py` | **Secondary** frozen real-behavior transfer |
-| 10 | `10_make_figures.py` | Per-model multipanel + comparison figures |
+| 07 | `07_train_model.py` | Train models (`--all`). BPTT/GRU/Bayes: 60×24×929; **PC: 60×24×240** (stable prior learning) |
+| 08 | `08_eval_synth_heldout.py` | Legacy single held-out eval (prefer `11`) |
+| 09 | `09_eval_real_transfer.py` | Legacy real transfer (prefer `11 --domain real`) |
+| 10 | `10_make_figures.py` | Multipanels + comparisons for synth×real×regime (after `11`) |
+| 11 | `11_eval_regimes.py` | Synth + real regimes: `history_only` / `full_information` / `fixed_prior` |
 
 ## Typical full run
 
@@ -31,10 +30,14 @@ python scripts/04_fit_synthetic_stats.py
 python scripts/05_build_synthetic_datasets.py
 python scripts/06_map_real_to_v2_ticks.py
 python scripts/07_train_model.py --all
-python scripts/08_eval_synth_heldout.py
-python scripts/09_eval_real_transfer.py
+python scripts/11_eval_regimes.py          # synth + real × all regimes
 python scripts/10_make_figures.py
 ```
+
+Figure layout after `10`:
+- `reports/v2/figures/by_model/{model}/{synth|real}/{regime}/multipanel_diagnostics.png`
+- `reports/v2/figures/comparison/{synth|real}_{regime}_{accuracy|history_gap|switch_curves}.png`
+- `reports/v2/figures/comparison/synth_vs_real_{regime}_{accuracy|history_gap}.png`
 
 If manifests / `synthetic_v2.yaml` / trials already exist locally, you can start at **04** or **05**.
 

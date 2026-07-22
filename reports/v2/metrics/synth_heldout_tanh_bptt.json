@@ -1,11 +1,28 @@
 {
   "stage": "synth_heldout",
   "model_id": "tanh_bptt",
-  "accuracy": 0.8103135091496233,
-  "cross_entropy": 0.39856481777679786,
-  "acc_block_0.2": 0.8127290404606985,
-  "acc_block_0.5": 0.6935286935286935,
-  "acc_block_0.8": 0.8211155649160948,
-  "zero_contrast_p_right_mean": 0.48077494959197714,
-  "zero_contrast_n": 5780
+  "accuracy": 0.8070505920344456,
+  "cross_entropy": 0.40272210796459906,
+  "acc_block_p_right_0.2": 0.8195529587607854,
+  "acc_block_p_right_0.5": 0.6813186813186813,
+  "acc_block_p_right_0.8": 0.8086904494802184,
+  "zero_contrast_p_choice_right_mean": 0.48466471044259013,
+  "zero_contrast_n": 5780,
+  "kyan_diagnostics": {
+    "zero_contrast_observed_choice_probability": {
+      "low_p_right_block": 0.3037321075167926,
+      "high_p_right_block": 0.6844869649382522
+    },
+    "counterfactual_zero_evidence_choice_probability": {
+      "low_p_right_block": 0.2954484678001611,
+      "high_p_right_block": 0.6948385870099327,
+      "history_gap": 0.39939011920977163
+    },
+    "settled_block_zero_evidence_calibration": {
+      "definition": "trials at least 15 trials after the most recent switch",
+      "low_p_right_block": 0.2544553070659722,
+      "high_p_right_block": 0.7409622183102372,
+      "mean_absolute_error_to_true_prior": 0.06348246394254382
+    }
+  }
 }

@@ -1,0 +1,27 @@
+{
+  "accuracy": 0.7956135629709364,
+  "cross_entropy": 1.2248691730410965,
+  "domain": "synth",
+  "regime": "full_information",
+  "model_id": "bayes",
+  "stage": "synth_regime",
+  "n_sessions": 32,
+  "n_trials": 929,
+  "kyan_diagnostics": {
+    "zero_contrast_observed_choice_probability": {
+      "low_p_right_block": 0.0012329329033328425,
+      "high_p_right_block": 0.9988086981686354
+    },
+    "counterfactual_zero_evidence_choice_probability": {
+      "low_p_right_block": 0.0008004663600637759,
+      "high_p_right_block": 0.9992432419785532,
+      "history_gap": 0.9984427756184894
+    },
+    "settled_block_zero_evidence_calibration": {
+      "definition": "trials at least 15 trials after the most recent switch",
+      "low_p_right_block": 0.0007662892635075125,
+      "high_p_right_block": 0.9992658265165588,
+      "mean_absolute_error_to_true_prior": 0.19775500734222248
+    }
+  }
+}

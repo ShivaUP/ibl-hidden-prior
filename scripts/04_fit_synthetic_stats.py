@@ -230,6 +230,8 @@ def main() -> int:
             "sessions_per_epoch": 24,
             "bptt_trials": 32,
             "learning_rate": 0.002,
+            "pc_epochs": 60,
+            "pc_trials_per_session": 240,
             "pc_synaptic_learning_rate": 0.0004,
             "pc_inference_steps": 8,
             "pc_inference_learning_rate": 0.15,
@@ -241,6 +243,8 @@ def main() -> int:
             "synth_sessions": 48,
             "synth_trials": int(stats["trials_per_session"]["default_synth"]),
             "seed": 10007,
+            "regimes": ["history_only", "full_information", "fixed_prior"],
+            "fi_oracle_logit_gain": 2.5,
         },
         "paths": {
             "artifacts": "artifacts/v2",

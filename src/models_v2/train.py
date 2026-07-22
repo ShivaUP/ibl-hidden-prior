@@ -56,26 +56,43 @@ def train_model(
     verbose: bool = True,
 ) -> Tuple[Any, Dict[str, Any]]:
     train_cfg = cfg["train"]
-    epochs = int(epochs if epochs is not None else train_cfg["epochs"])
     n_sess = int(train_cfg["sessions_per_epoch"])
-    n_trials_full = int(cfg["trials_per_session_default"])
     bptt_trials = int(train_cfg["bptt_trials"])
     hidden = int(cfg["hidden_size"])
     seed = int(train_cfg["seed"])
     rng = np.random.default_rng(seed)
     model = _make_model(model_id, hidden, rng)
-    exposure = exposure_summary(cfg, epochs=epochs)
 
+    # PC: shorter sessions (Kyan-scale). Long empirical sessions failed to learn priors.
     if model_id == "tanh_pc":
+        epochs = int(
+            epochs
+            if epochs is not None
+            else train_cfg.get("pc_epochs", train_cfg["epochs"])
+        )
+        n_trials_full = int(
+            train_cfg.get("pc_trials_per_session", 240)
+        )
         lr = float(train_cfg["pc_synaptic_learning_rate"])
         pc = PredictiveCodingTrainer(model)
         opt = Adam(model.parameters(), lr)
         infer_steps = int(train_cfg["pc_inference_steps"])
     else:
+        epochs = int(epochs if epochs is not None else train_cfg["epochs"])
+        n_trials_full = int(cfg["trials_per_session_default"])
         lr = float(train_cfg["learning_rate"])
         opt = Adam(model.parameters(), lr)
         pc = None
         infer_steps = 0
+
+    # Exposure accounting uses the actual session length for this model
+    cfg_exp = dict(cfg)
+    cfg_exp["trials_per_session_default"] = n_trials_full
+    if model_id == "tanh_pc":
+        cfg_exp = dict(cfg_exp)
+        cfg_exp["train"] = dict(train_cfg)
+        cfg_exp["train"]["epochs"] = epochs
+    exposure = exposure_summary(cfg_exp, epochs=epochs)
 
     weight_decay = float(train_cfg.get("weight_decay", 1e-5))
     clip = float(train_cfg.get("gradient_clip_norm", 1.0))
@@ -141,9 +158,13 @@ def train_model(
                     weight_decay=weight_decay,
                 )
                 gnorm = opt.update(grads, clip)
+                # Carry pre-update forward state only (Kyan: no label leak)
                 state = forward_final
-                chunk_losses.append(energy)
-                energy_reductions.append(float(energy_trace[0] - energy_trace[-1]))
+                # Log energy per timestep like Kyan
+                chunk_losses.append(energy / max(chunk_x.shape[1], 1))
+                energy_reductions.append(
+                    float(energy_trace[0] - energy_trace[-1]) / max(chunk_x.shape[1], 1)
+                )
             else:
                 loss, grads, state = model.loss_and_gradients(
                     chunk_x, chunk_y, state, weight_decay

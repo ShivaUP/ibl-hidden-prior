@@ -1,0 +1,13 @@
+{
+  "accuracy": 0.725,
+  "cross_entropy": 0.4999345546435755,
+  "domain": "synth",
+  "regime": "fixed_prior",
+  "model_id": "tanh_bptt",
+  "stage": "synth_regime",
+  "n_sessions": 32,
+  "n_trials": 10,
+  "kyan_diagnostics": {
+    "note": "switch/history-gap N/A on fixed_prior"
+  }
+}

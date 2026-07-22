@@ -19,7 +19,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.models_v2.rollout import accuracy_and_ce, load_model, rollout_closed_loop
+from src.models_v2.rollout import (
+    accuracy_and_ce,
+    load_model,
+    rollout_closed_loop,
+    summarize_kyan_diagnostics,
+)
 from src.synthetic.channels import PhaseTicks
 from src.synthetic.generate import SyntheticBatch
 from src.synthetic.schema import load_synthetic_config
@@ -52,18 +57,21 @@ def eval_one(model_id: str, cfg: dict) -> dict:
     roll = rollout_closed_loop(model, batch, cfg, model_id)
     metrics = accuracy_and_ce(roll)
     # psychometric by block prior (coarse)
-    pleft = roll["probability_left"]
+    true_p = roll["true_p_right"]
     for prior in (0.2, 0.5, 0.8):
-        mask = np.isclose(pleft, prior)
+        mask = np.isclose(true_p, prior)
         if mask.any():
-            metrics[f"acc_block_{prior}"] = float(
+            metrics[f"acc_block_p_right_{prior}"] = float(
                 np.mean(roll["choice"][mask] == roll["side"][mask])
             )
-    # zero-contrast prior probe
+    # zero-contrast prior probe (observed choice path)
     zc = np.isclose(roll["contrast"], 0.0)
     if zc.any():
-        metrics["zero_contrast_p_right_mean"] = float(np.mean(roll["p_right"][zc]))
+        metrics["zero_contrast_p_choice_right_mean"] = float(
+            np.mean(roll["p_choice_right"][zc])
+        )
         metrics["zero_contrast_n"] = int(zc.sum())
+    metrics["kyan_diagnostics"] = summarize_kyan_diagnostics(roll)
 
     out_dir = ROOT / cfg["paths"]["reports"] / "metrics"
     out_dir.mkdir(parents=True, exist_ok=True)

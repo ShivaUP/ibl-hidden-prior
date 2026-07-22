@@ -3,9 +3,26 @@
   "model_id": "bayes",
   "accuracy": 0.7764733584499461,
   "cross_entropy": 0.4561977244367249,
-  "acc_block_0.2": 0.7828135517164012,
-  "acc_block_0.5": 0.7307692307692307,
-  "acc_block_0.8": 0.7757999864121203,
-  "zero_contrast_p_right_mean": 0.4982677954213639,
-  "zero_contrast_n": 5780
+  "acc_block_p_right_0.2": 0.7757999864121203,
+  "acc_block_p_right_0.5": 0.7307692307692307,
+  "acc_block_p_right_0.8": 0.7828135517164012,
+  "zero_contrast_p_choice_right_mean": 0.4982677954213639,
+  "zero_contrast_n": 5780,
+  "kyan_diagnostics": {
+    "zero_contrast_observed_choice_probability": {
+      "low_p_right_block": 0.38689537013611847,
+      "high_p_right_block": 0.6180845237653173
+    },
+    "counterfactual_zero_evidence_choice_probability": {
+      "low_p_right_block": 0.3668553824886202,
+      "high_p_right_block": 0.6443768835398777,
+      "history_gap": 0.27752150105125745
+    },
+    "settled_block_zero_evidence_calibration": {
+      "definition": "trials at least 15 trials after the most recent switch",
+      "low_p_right_block": 0.35739261066231454,
+      "high_p_right_block": 0.6506046351284576,
+      "mean_absolute_error_to_true_prior": 0.1577225037981094
+    }
+  }
 }

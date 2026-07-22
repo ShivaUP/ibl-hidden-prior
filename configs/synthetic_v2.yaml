@@ -200,12 +200,15 @@ block_transition_probability_left:
     '0.8': 0.0
 trials_per_session_default: 929
 train:
-  # Empirical phase ticks unchanged. Kyan schedule 60×24, longer sessions:
-  # 60×24×929 ≈ 1.34M trial-exposures (~3.9× Kyan 60×24×240). Full-session BPTT chunks.
+  # Empirical phase ticks unchanged. Kyan schedule 60×24 for BPTT/GRU/Bayes on full
+  # empirical session length. PC uses shorter sessions (Kyan-scale) — long 929-trial
+  # PC chunks were unstable / failed to learn history gap (see docs / handoff).
   epochs: 60
   sessions_per_epoch: 24
   bptt_trials: 32
   learning_rate: 0.002
+  pc_epochs: 60
+  pc_trials_per_session: 240
   pc_synaptic_learning_rate: 0.0004
   pc_inference_steps: 8
   pc_inference_learning_rate: 0.15
@@ -216,6 +219,11 @@ eval:
   synth_sessions: 48
   synth_trials: 929
   seed: 10007
+  regimes:
+  - history_only
+  - full_information
+  - fixed_prior
+  fi_oracle_logit_gain: 2.5
 paths:
   artifacts: artifacts/v2
   reports: reports/v2

@@ -1,0 +1,13 @@
+{
+  "accuracy": 0.734375,
+  "cross_entropy": 0.48358144651365953,
+  "domain": "synth",
+  "regime": "fixed_prior",
+  "model_id": "gru",
+  "stage": "synth_regime",
+  "n_sessions": 32,
+  "n_trials": 10,
+  "kyan_diagnostics": {
+    "note": "switch/history-gap N/A on fixed_prior"
+  }
+}

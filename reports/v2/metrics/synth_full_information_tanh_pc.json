@@ -1,0 +1,27 @@
+{
+  "accuracy": 0.826224434876211,
+  "cross_entropy": 1.059299672554124,
+  "domain": "synth",
+  "regime": "full_information",
+  "model_id": "tanh_pc",
+  "stage": "synth_regime",
+  "n_sessions": 32,
+  "n_trials": 929,
+  "kyan_diagnostics": {
+    "zero_contrast_observed_choice_probability": {
+      "low_p_right_block": 0.004322401067998765,
+      "high_p_right_block": 0.9956342523455523
+    },
+    "counterfactual_zero_evidence_choice_probability": {
+      "low_p_right_block": 0.0014424441441856606,
+      "high_p_right_block": 0.9989032480243358,
+      "history_gap": 0.9974608038801501
+    },
+    "settled_block_zero_evidence_calibration": {
+      "definition": "trials at least 15 trials after the most recent switch",
+      "low_p_right_block": 0.0013336435316977202,
+      "high_p_right_block": 0.9993402079604873,
+      "mean_absolute_error_to_true_prior": 0.19794673607627897
+    }
+  }
+}
