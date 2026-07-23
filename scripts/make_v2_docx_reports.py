@@ -438,23 +438,188 @@ def build_methods() -> Path:
 
     parts.append(h_xml(1, "7. Neural prior comparison"))
     parts.append(p_xml(
-        "For each region with units in a session, peri-stimulus spike counts (−0.1 to 0.3 s relative to stimulus "
-        "onset) are mapped to a neural prior axis by cross-validated ridge regression onto a behavior-derived mouse "
-        "prior estimate. Model belief on the same trials is then used to explain that neural axis. The primary "
-        "metric is linearly recalibrated variance explained (VE), aggregated as a session mean within region."
+        "This section asks a different question from the behavioral scorecards. Behavior asks: which model "
+        "chooses more like the task (or more like the mouse)? Neural comparison asks: once we have built a "
+        "one-dimensional summary of how a brain region tracks the mouse’s trial-by-trial prior, which model’s "
+        "latent belief best tracks that same neural summary? The goal is not to claim that the model is the "
+        "brain, but to test which model’s internal belief trajectory is most aligned with a behavior-defined "
+        "neural prior axis in regions previously linked to prior encoding."
+    ))
+
+    parts.append(h_xml(2, "7.1 Intuition: from spikes to a neural prior axis"))
+    parts.append(p_xml(
+        "On each trial, many neurons in a region fire at different rates. Those rates likely mix sensory, "
+        "motor, and cognitive signals. We do not compare the full population vector to a model. Instead we "
+        "construct a single number per trial that is meant to capture the region’s encoding of the mouse’s "
+        "subjective prior — call this the neural prior axis, denoted û_t. Conceptually:"
+    ))
+    parts.append(ul_xml([
+        "Step A — estimate what prior the mouse appears to be using from behavior alone (mouse prior p̂_t).",
+        "Step B — learn a linear map from the region’s peri-stimulus spike counts to that mouse prior, using "
+        "cross-validated ridge regression, yielding û_t on held-out trials.",
+        "Step C — ask how well each model’s belief q_t explains û_t on the same trials.",
+        "Step D — only after models are matched on history-only choice quality do we treat a neural "
+        "advantage as confirmatory (behavior-matched survival).",
+    ]))
+    parts.append(p_xml(
+        "This design separates three ideas that are easy to confuse: (i) the mouse’s behavioral prior "
+        "estimate, (ii) the neural readout of that prior, and (iii) the model’s latent belief. The primary "
+        "comparison is between (ii) and (iii), with (i) used only to define the neural axis."
+    ))
+
+    parts.append(h_xml(2, "7.2 Behavior-derived mouse prior (target for the neural axis)"))
+    parts.append(p_xml(
+        "The mouse prior is not the true block probabilityLeft from the experimenter. It is a compact "
+        "history-only estimate of the mouse’s subjective P(right) used as a bias in a logistic choice model. "
+        "Concretely:"
+    ))
+    parts.append(ul_xml([
+        "Within each session, a leaky online estimate is updated from experienced stimulus sides: "
+        "p_{t+1} = (1−α) p_t + α · 1{stimulus_right on trial t}, with p_t reported before the update "
+        "(causal: p_t depends only on history before trial t).",
+        "α is selected by grid search to minimize choice negative log-likelihood of a logistic model "
+        "logit P(choice_right) = β0 + β_c · signed_contrast + β_p · (2p_t − 1).",
+        "The resulting p_t series is the regression target for neural decoding. It is a behavior-derived "
+        "proxy for subjective prior, not ground truth for neural state.",
+    ]))
+
+    parts.append(h_xml(2, "7.3 Neural features: peri-stimulus spike counts"))
+    parts.append(p_xml(
+        "For each session and each primary region that contains sorted units in that session:"
+    ))
+    parts.append(ul_xml([
+        "Units are assigned to regions by Allen acronym mapping (MOs, ORBvl→vlOFC, ACAd, MOp).",
+        "Spikes are aligned to stimulus onset (stimOn_times).",
+        "For each trial and unit, we count spikes in the half-open window [−0.1, 0.3) seconds relative to "
+        "stimulus onset (400 ms total). This is the locked peri-stimulus analysis window.",
+        "The result is a matrix X of shape (n_trials × n_units) of raw spike counts for that "
+        "session×region. Sessions without units in a region are skipped for that region (coverage is by "
+        "cohort union, not every session in every ROI).",
+    ]))
+
+    parts.append(h_xml(2, "7.4 Building the neural prior axis (cross-validated ridge)"))
+    parts.append(p_xml(
+        "We map X → mouse prior p̂ with ridge regression, always evaluating predictions out-of-fold so the "
+        "axis is not trivially overfit to noise:"
+    ))
+    parts.append(ul_xml([
+        "Predictors X are z-scored within each training fold (StandardScaler fit on train, applied to test).",
+        "Regressor: RidgeCV with a log-spaced grid of regularization strengths α ∈ {10^{−2} … 10^3} "
+        "(12 values).",
+        "Cross-validation: K-fold with K = 5 when enough trials exist (otherwise fewer folds), with "
+        "shuffling and a fixed random seed for reproducibility. Each trial receives exactly one "
+        "out-of-fold prediction û_t.",
+        "Minimum data: if too few finite trials or zero units, that session×region is skipped "
+        "(NaN VE).",
+        "Optional diagnostics stored alongside: cross-validated variance explained of p̂ by û "
+        "(how well the region can be read out to the mouse prior) and correlation(p̂, û).",
+    ]))
+    parts.append(p_xml(
+        "Importantly, û_t is defined from neural activity and the mouse prior only. Model beliefs do not "
+        "enter the construction of the neural axis. This prevents circularity when later asking which "
+        "model explains û."
+    ))
+
+    parts.append(h_xml(2, "7.5 Model belief as a predictor of the neural axis"))
+    parts.append(p_xml(
+        "On the same trials, each frozen model produces a scalar belief q_t (zero-evidence P(right) under "
+        "the evaluation regime of interest; neural analyses use the history-only real-transfer rollouts). "
+        "We ask how much of the variance in û_t is explained by q_t."
     ))
     parts.append(p_xml(
-        "Behavior matching retains models whose history-only choice cross-entropy lies within an ε-ball of the "
-        "best model on the shared cohort. Survival testing asks whether the matched VE advantage of the best model "
-        "over the second-best survives session bootstrap confidence intervals and Holm correction across regions."
+        "Variance explained is VE = 1 − SSE/SST, where SST is the total sum of squares of û around its "
+        "mean and SSE is the residual sum of squares after a prediction. Two variants are computed:"
     ))
+    parts.append(ul_xml([
+        "ve_raw: use q_t directly as the prediction of û_t. This penalizes scale and offset mismatches "
+        "(a model that tracks the shape of û but lives on a different numeric scale can look worse).",
+        "ve_linear_recal (primary): first fit a simple linear map û ≈ a · q + b by ordinary least squares "
+        "on the same trials, then compute VE of û by that recalibrated prediction. This asks whether q "
+        "and û share a linear relationship up to affine transform — the scientifically relevant notion "
+        "of “tracks the same latent,” without requiring identical units or calibration.",
+        "corr: Pearson correlation between û and q (secondary).",
+    ]))
+    parts.append(p_xml(
+        "Primary reported neural metric: ve_linear_recal, computed once per (session, region, model)."
+    ))
+
+    parts.append(h_xml(2, "7.6 Aggregation across sessions"))
+    parts.append(p_xml(
+        "For each region and model, we average ve_linear_recal across sessions that contribute that region. "
+        "This session-mean is the ranking quantity plotted in the unmatched and matched neural boards. "
+        "Using sessions as the unit of aggregation (rather than pooling all trials) respects that sessions "
+        "differ in unit counts, noise, and coverage, and matches the resampling unit used in survival tests."
+    ))
+
+    parts.append(h_xml(2, "7.7 Why behavior matching? Unmatched vs confirmatory claims"))
+    parts.append(p_xml(
+        "A model that fails at history-only choice may still correlate with a neural prior axis for "
+        "incidental reasons, or a behaviorally superior model may look better neurally simply because it "
+        "is a better behavioral model. Confirmatory neural claims therefore restrict attention to models "
+        "that are approximately matched on the same shared cohort’s history-only choice quality."
+    ))
+    parts.append(p_xml("Matching rule (choice-primary ε-ball):"))
+    parts.append(ul_xml([
+        "Compute each model’s mean trial cross-entropy (choice NLL) on the shared behavior+neural cohort "
+        "under real history-only evaluation.",
+        "Let CE★ be the best (lowest) CE among models.",
+        "Retain model m if CE_m − CE★ ≤ ε with ε = 0.05 (nats per trial).",
+        "An RT NLL floor exists in code but is set non-binding in the current pipeline (RT is not used to "
+        "gate neural confirmatory claims).",
+        "Unmatched tables/figures still show all models for transparency; matched tables/figures and "
+        "survival tests use only the ε-ball set.",
+    ]))
+
+    parts.append(h_xml(2, "7.8 Survival testing of a matched neural advantage"))
+    parts.append(p_xml(
+        "Within each region, among matched models, identify the best and second-best by session-mean "
+        "ve_linear_recal. The quantity of interest is the paired session advantage "
+        "Δ = mean_s VE(best, s) − mean_s VE(second, s), where s indexes sessions that have both models’ VE."
+    ))
+    parts.append(p_xml("Session bootstrap (per region):"))
+    parts.append(ul_xml([
+        "Resample sessions with replacement (B = 2000), recompute Δ each time.",
+        "Report the observed Δ, a percentile 95% confidence interval [2.5%, 97.5%], and a two-sided "
+        "bootstrap p-value: twice the fraction of bootstrap Δ’s that have opposite sign to the observed "
+        "Δ (capped at 1).",
+        "Sessions are the resampling unit because VE is already a session-level summary and sessions are "
+        "the natural independent replicate for this cohort size.",
+    ]))
+    parts.append(p_xml("Multiple regions (Holm correction):"))
+    parts.append(ul_xml([
+        "Each primary region yields one bootstrap p-value for best-vs-second among matched models.",
+        "These p-values are adjusted by the Holm–Bonferroni step-down procedure across the tested "
+        "regions.",
+        "We say the advantage “survives” in a region if the Holm-adjusted p-value is below 0.05 "
+        "(equivalently: the matched VE gap remains credible after correcting for testing multiple ROIs).",
+    ]))
+    parts.append(p_xml(
+        "Interpretation for non-experts: surviving means — after restricting to models that are similarly "
+        "good at history-only choices, and after accounting for session-to-session variability and the fact "
+        "that we look at several brain regions — the top model’s edge in explaining the neural prior axis "
+        "over the next-best matched model is still statistically supported in that region. Non-survival "
+        "(e.g. in a sparsely covered ROI) means the gap is not yet trustworthy under these corrections, "
+        "not that neural encoding is absent."
+    ))
+
+    parts.append(h_xml(2, "7.9 What this analysis does and does not claim"))
+    parts.append(ul_xml([
+        "Does claim: relative alignment of model belief trajectories with a behavior-defined neural prior "
+        "axis under a fixed peri-stimulus window and linear readout.",
+        "Does not claim: that û is the unique or true neural prior; that ridge is the brain’s readout; "
+        "that VE proves causal encoding; or that unmatched VE rankings alone are confirmatory.",
+        "Known gaps: no embodied-prior controls (video / eye) yet; peri-stimulus window only; ROI "
+        "coverage uneven across sessions; mouse prior is itself a model of behavior.",
+    ]))
 
     parts.append(h_xml(1, "8. Limitations"))
     parts.append(ul_xml([
-        "ROI coverage is by cohort union; some regions have few sessions.",
+        "ROI coverage is by cohort union; some regions have few sessions (survival underpowered there).",
         "Embodied-prior controls (video / eye position) are not yet applied.",
         "The neural window is peri-stimulus; complementary inter-trial decoding is left for later work.",
         "Synthetic training distribution approximates but does not replay individual mice.",
+        "Mouse prior and neural axis are estimated quantities; errors in either reduce neural VE for all "
+        "models and can shrink detectable advantages.",
     ]))
 
     out = ROOT / "reports" / "v2" / "METHODS_DETAILED.docx"
@@ -572,10 +737,15 @@ def build_article() -> Path:
 
     parts.append(h_xml(2, "Neural analysis"))
     parts.append(p_xml(
-        "Peri-stimulus spike counts (−0.1 to 0.3 s) are mapped to a neural prior axis by cross-validated ridge "
-        "regression onto a behavior-derived mouse prior. Model belief is scored by linearly recalibrated "
-        "variance explained of that axis. Models are behavior-matched with a cross-entropy ε-ball on the shared "
-        "cohort. Survival uses session bootstrap confidence intervals and Holm correction across regions."
+        "Neural comparison asks which model’s belief best tracks a one-dimensional neural prior axis in each "
+        "region. That axis is built without using any model: peri-stimulus spike counts (−0.1 to 0.3 s from "
+        "stimulus onset) are mapped by 5-fold cross-validated ridge regression onto a behavior-derived mouse "
+        "prior (leaky online P(right) fit to choice). Model belief q_t is then scored by linearly recalibrated "
+        "variance explained of the out-of-fold neural axis (ve_linear_recal), averaged across sessions within "
+        "region. Confirmatory claims restrict to models whose shared-cohort history-only choice cross-entropy "
+        "lies within ε = 0.05 of the best model; survival of the matched best-vs-second VE gap is tested by "
+        "session bootstrap (B = 2000) with Holm correction across regions. Full step-by-step detail is in "
+        "METHODS_DETAILED.docx §7."
     ))
 
     parts.append(h_xml(1, "Results"))
