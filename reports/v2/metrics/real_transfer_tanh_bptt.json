@@ -2,9 +2,9 @@
   "stage": "real_transfer",
   "model_id": "tanh_bptt",
   "scoring": "correct_side_only",
-  "accuracy": 0.8173777315296566,
-  "acc_vs_correct_side": 0.8173777315296566,
-  "cross_entropy": 0.35506916285937923,
-  "ce_vs_correct_side": 0.35506916285937923,
-  "n_sessions": 10
+  "accuracy": 0.8146475554682898,
+  "acc_vs_correct_side": 0.8146475554682898,
+  "cross_entropy": 0.3397972298317998,
+  "ce_vs_correct_side": 0.3397972298317998,
+  "n_sessions": 8
 }

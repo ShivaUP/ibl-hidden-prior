@@ -1,0 +1,121 @@
+{
+  "created_utc": "2026-07-23T21:31:19.835364+00:00",
+  "name": "shared_behavior_neural",
+  "description": "Shared real-eval + neural VE cohort (n=8): greedy ROI coverage over expanded belief-updating regions, then QC-ranked fillers. Union of sessions covers listed ROIs; individual sessions typically have 1\u2013few ROIs.",
+  "source": "shared_behavior_neural_pool_expanded_eids.json",
+  "parent_pool": "data/manifests/shared_behavior_neural_pool_expanded_eids.json",
+  "n_sessions": 8,
+  "max_sessions": 8,
+  "regions_in_scope": [
+    "MOs",
+    "vlOFC_orbvl",
+    "ACAd",
+    "MOp"
+  ],
+  "regions_covered_in_cohort": [
+    "ACAd",
+    "MOp",
+    "MOs",
+    "vlOFC_orbvl"
+  ],
+  "regions_missing_in_cohort": [],
+  "selection_rule": "greedy set-cover over ROI flags; prefer new ROIs, then primary cortex (MOs/ORBvl/ACAd), then multi-ROI count, then fraction_after_rt_trim / fraction_pass_rules_1_to_4 / n_choice_trials",
+  "eids": [
+    "2c44a360-5a56-4971-8009-f469fb59de98",
+    "4d8c7767-981c-4347-8e5e-5d5fffe38534",
+    "8207abc6-6b23-4762-92b4-82e05bed5143",
+    "5455a21c-1be7-4cae-ae8e-8853a8d5f55e",
+    "2e6e179c-fccc-4e8f-9448-ce5b6858a183",
+    "1191f865-b10a-45c8-9c48-24a980fd9402",
+    "113c5b6c-940e-4b21-b462-789b4c2be0e5",
+    "4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a"
+  ],
+  "sessions": [
+    {
+      "eid": "2c44a360-5a56-4971-8009-f469fb59de98",
+      "n_choice_trials": 600,
+      "fraction_after_rt_trim": 0.98,
+      "fraction_pass_rules_1_to_4": 1.0,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": false,
+      "has_ACAd": true,
+      "has_MOp": true
+    },
+    {
+      "eid": "4d8c7767-981c-4347-8e5e-5d5fffe38534",
+      "n_choice_trials": 766,
+      "fraction_after_rt_trim": 0.97911227154047,
+      "fraction_pass_rules_1_to_4": 1.0,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": true,
+      "has_ACAd": true,
+      "has_MOp": false
+    },
+    {
+      "eid": "8207abc6-6b23-4762-92b4-82e05bed5143",
+      "n_choice_trials": 743,
+      "fraction_after_rt_trim": 0.9784656796769852,
+      "fraction_pass_rules_1_to_4": 1.0,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": true,
+      "has_ACAd": false,
+      "has_MOp": false
+    },
+    {
+      "eid": "5455a21c-1be7-4cae-ae8e-8853a8d5f55e",
+      "n_choice_trials": 634,
+      "fraction_after_rt_trim": 0.9779179810725552,
+      "fraction_pass_rules_1_to_4": 1.0,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": false,
+      "has_ACAd": true,
+      "has_MOp": true
+    },
+    {
+      "eid": "2e6e179c-fccc-4e8f-9448-ce5b6858a183",
+      "n_choice_trials": 540,
+      "fraction_after_rt_trim": 0.9777777777777777,
+      "fraction_pass_rules_1_to_4": 1.0,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": true,
+      "has_ACAd": false,
+      "has_MOp": false
+    },
+    {
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "n_choice_trials": 966,
+      "fraction_after_rt_trim": 0.9772256728778468,
+      "fraction_pass_rules_1_to_4": 0.9979296066252588,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": true,
+      "has_ACAd": false,
+      "has_MOp": false
+    },
+    {
+      "eid": "113c5b6c-940e-4b21-b462-789b4c2be0e5",
+      "n_choice_trials": 433,
+      "fraction_after_rt_trim": 0.976905311778291,
+      "fraction_pass_rules_1_to_4": 1.0,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": false,
+      "has_ACAd": true,
+      "has_MOp": true
+    },
+    {
+      "eid": "4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a",
+      "n_choice_trials": 526,
+      "fraction_after_rt_trim": 0.9752851711026616,
+      "fraction_pass_rules_1_to_4": 0.9980988593155894,
+      "has_MOs": true,
+      "has_vlOFC_orbvl": true,
+      "has_ACAd": false,
+      "has_MOp": false
+    }
+  ],
+  "papers": {
+    "prior_findling_2025": "https://www.nature.com/articles/s41586-025-09226-1",
+    "bwm_ibl_2025": "https://www.nature.com/articles/s41586-025-09235-0",
+    "behavior_ibl_2021": "https://elifesciences.org/articles/63711"
+  },
+  "note": "No Neuropixels session has all ROIs. Behavior transfer and neural VE share these eids; per-region VE uses the subset of sessions that contain that region."
+}

@@ -1,29 +1,29 @@
 {
-  "accuracy": 0.8006243496357961,
-  "acc_vs_correct_side": 0.8006243496357961,
-  "cross_entropy": 1.153719161155896,
-  "ce_vs_correct_side": 1.153719161155896,
+  "accuracy": 0.7889259768309445,
+  "acc_vs_correct_side": 0.7889259768309445,
+  "cross_entropy": 1.116400104176163,
+  "ce_vs_correct_side": 1.116400104176163,
   "domain": "real",
   "regime": "full_information",
   "model_id": "tanh_bptt",
   "stage": "real_regime",
-  "n_sessions": 10,
-  "n_trials_pooled": 9610,
+  "n_sessions": 8,
+  "n_trials_pooled": 5093,
   "kyan_diagnostics": {
     "zero_contrast_observed_choice_probability": {
-      "low_p_right_block": 0.000493923398543695,
-      "high_p_right_block": 0.999474373302243
+      "low_p_right_block": 0.0005255178333508634,
+      "high_p_right_block": 0.9993987887067346
     },
     "counterfactual_zero_evidence_choice_probability": {
-      "low_p_right_block": 0.0004796392323937969,
-      "high_p_right_block": 0.999461681835573,
-      "history_gap": 0.9989820426031792
+      "low_p_right_block": 0.0004909335762229114,
+      "high_p_right_block": 0.9994263223137964,
+      "history_gap": 0.9989353887375735
     },
     "settled_block_zero_evidence_calibration": {
       "definition": "trials at least 15 trials after the most recent switch",
-      "low_p_right_block": 0.0003350722173016717,
-      "high_p_right_block": 0.9996282327171211,
-      "mean_absolute_error_to_true_prior": 0.1976396973539493
+      "low_p_right_block": 0.00032639930639084266,
+      "high_p_right_block": 0.9995736996944161,
+      "mean_absolute_error_to_true_prior": 0.19713319220536338
     }
   }
 }

@@ -1,14 +1,14 @@
 {
-  "accuracy": 0.718213058419244,
-  "acc_vs_correct_side": 0.718213058419244,
-  "cross_entropy": 0.4830583795095209,
-  "ce_vs_correct_side": 0.4830583795095209,
+  "accuracy": 0.7245762711864406,
+  "acc_vs_correct_side": 0.7245762711864406,
+  "cross_entropy": 0.452199357083857,
+  "ce_vs_correct_side": 0.452199357083857,
   "domain": "real",
   "regime": "fixed_prior",
   "model_id": "tanh_bptt",
   "stage": "real_regime",
-  "n_sessions": 10,
-  "n_trials_pooled": 873,
+  "n_sessions": 8,
+  "n_trials_pooled": 708,
   "kyan_diagnostics": {
     "note": "switch/history-gap N/A on fixed_prior"
   }

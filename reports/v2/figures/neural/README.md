@@ -1,8 +1,8 @@
-# Neural figures (v2)
+# Neural figures (v2 — shared cohort)
 
-- `neural_ve_unmatched_vs_matched.png` — primary VE bars per region.
-  Light = all models; dark = only behavior-matched (CE within ε of best).
-- `survival_tests.png` — does matched VE advantage survive bootstrap + Holm?
+Cohort: `shared_behavior_neural_eids.json` (same sessions as real behavior transfer).
 
-Model q is synth-trained belief on the neural pilot session.
-Neural axis is CV Ridge readout of behavior-derived mouse prior (v1 Phase 8).
+- Bars = **session-mean** `ve_linear_recal` (± 95% CI across sessions).
+- Regions: MOs, vlOFC, ACAd, MOp.
+- Survival: bootstrap over **sessions**, Holm across regions.
+- Saved at DPI 600.

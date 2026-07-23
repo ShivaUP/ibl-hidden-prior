@@ -7,18 +7,18 @@ All user-facing entrypoints are numbered. Run in order unless a later step’s i
 | 00 | `00_smoke_one_connection.py` | ONE/openalyx connectivity smoke test |
 | 01 | `01_run_session_qc.py` | QC candidates; pin `behavior_core_eids.json` |
 | 02 | `02_audit_event_deltas.py` | Event-time deltas → phase-tick medians |
-| 03 | `03_build_processed_trials.py` | Behavior-core → `data/processed/trials/` |
+| 03 | `03_build_processed_trials.py` | Shared behavior+neural cohort → trials (default) |
 | 04 | `04_fit_synthetic_stats.py` | Empirical synth stats + `configs/synthetic_v2.yaml` |
 | 05 | `05_build_synthetic_datasets.py` | Sample synth train pool + held-out |
-| 06 | `06_map_real_to_v2_ticks.py` | Real trials → shared tick tensors |
+| 06 | `06_map_real_to_v2_ticks.py` | Shared cohort → tick tensors |
 | 07 | `07_train_model.py` | Train models (`--all`). BPTT/GRU/Bayes: 60×24×929; **PC: 60×24×240** (stable prior learning) |
 | 08 | `08_eval_synth_heldout.py` | Legacy single held-out eval (prefer `11`) |
 | 09 | `09_eval_real_transfer.py` | Legacy real transfer (prefer `11 --domain real`) |
 | 10 | `10_make_figures.py` | Multipanels + readable model scorecards / switch boards (after `11`) |
 | 11 | `11_eval_regimes.py` | Synth + real regimes: `history_only` / `full_information` / `fixed_prior` |
-| 12 | `12_build_neural_intersect.py` | Copy/refresh neural∩behavior manifest into `reports/v2/neural/` |
-| 13 | `13_eval_neural_pilot.py` | Neural prior VE pilot (MOs, vlOFC) with synth-trained model belief |
-| 14 | `14_eval_neural_matched.py` | Behavior-matched VE + bootstrap survival (Holm) |
+| 12 | `12_build_neural_intersect.py` | Rebuild expanded-ROI BWM∩behavior pool + shared cohort |
+| 13 | `13_eval_neural_pilot.py` | Full neural VE on shared cohort (all ROIs present per session) |
+| 14 | `14_eval_neural_matched.py` | Behavior-matched VE + session-bootstrap survival (Holm) |
 | 15 | `15_make_neural_figures.py` | Neural VE / survival figures |
 
 ## Typical full run

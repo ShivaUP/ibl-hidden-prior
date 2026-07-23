@@ -1,42 +1,48 @@
-# Real behavioral evaluation (v2)
+# Real behavioral + neural evaluation (v2)
 
-## Scoring rule (locked)
+## Shared cohort (locked)
 
-**Train and test only on correctness** — the correct stimulus side.
+**Behavior transfer and neural VE use the same sessions.**
 
-- Training (synth): cross-entropy vs correct side.
-- Synth held-out / regimes: accuracy + CE vs correct side.
-- Real transfer: accuracy + CE vs correct side **only**.
-- **Not** scored against mouse choice or mouse P(right).
-- Figures do **not** overlay mouse psychometrics or mouse choices.
+- Manifest: `data/manifests/shared_behavior_neural_eids.json` (n=8)
+- Primary ROIs: MOs, ORBvl (vlOFC), ACAd, MOp — see [`docs/NEURAL_REGIONS.md`](NEURAL_REGIONS.md)
+- Selection: greedy ROI set-cover over the four primary regions
+- Coverage report: `reports/v2/neural/neural_intersect_summary.json`
+- Legacy behavior-only list (no ephys): `data/manifests/behavior_core_eids.json` — **not** used for v2 real+neural claims
 
-Model curves such as “zero-evidence P(right)” are the **network’s** preference under no stimulus — a diagnostic of learned prior use — not a mouse-matching target.
+Rebuild:
+```bash
+python scripts/12_build_neural_intersect.py --max-sessions 20
+python scripts/03_build_processed_trials.py
+python scripts/06_map_real_to_v2_ticks.py
+python scripts/11_eval_regimes.py --domain real
+python scripts/13_eval_neural_pilot.py          # all ROIs present in each session
+python scripts/14_eval_neural_matched.py
+python scripts/15_make_neural_figures.py
+python scripts/10_make_figures.py
+```
 
-## What the network is tested on
+## Scoring (behavior)
 
-Frozen synth-trained models are evaluated on the **behavior-core** set:
+Train and test only on **correct stimulus side** (not mouse choice).  
+On real rollouts, mouse action/reward are history **inputs** only.
 
-- Manifest: `data/manifests/behavior_core_eids.json` → `data/manifests/real_v2_ticks.json`
-- **10 QC-gated sessions** (not the full IBL corpus)
-- Weights are never fine-tuned on mice
+## Neural comparison
 
-## History input on real sessions (not a score)
+Regions (Allen): MOs, ORBvl, ACAd, MOp (primary analysis scope).
 
-On real rollouts, action/reward **input channels** still follow what happened in that session (mouse action + outcome). That is history the network sees so its state can update. It is **not** the training or ranking target.
+1. Spike counts (peri-stim) → CV Ridge → mouse \(\hat p_t\) = neural prior readout \(n_t\)
+2. Model belief \(q_t\) on the **same** trials
+3. Primary: `ve_linear_recal` of \(n_t\) by \(q_t\), then **mean across sessions that have that region**
+4. Behavior match: CE ε-ball on this cohort’s history_only metrics
+5. Survival: session bootstrap of matched VE advantage + Holm across regions
 
-Eval: `python scripts/11_eval_regimes.py --domain real`
+## Why not the old behavior-core 10?
 
-## How metrics are pooled
+Those sessions have **no Neuropixels insertions**, so neural VE is impossible.
 
-| Metric | Pooling | Sensitive to different block *orders*? |
-|---|---|---|
-| Accuracy / CE vs correct side | All valid trials across the 10 sessions | **No** |
-| Psychometric by block prior | Trials conditioned on prior + signed contrast | **No** |
-| Switch-centered zero-evidence | Switches aligned at \(t=0\) | **No** |
-| Example session panel | One session (longest), raw trial index | Illustrative only |
+## Paper links
 
-## What is *not* claimed
-
-- Not matching mouse choice or mouse subjective prior.
-- Not a subject-balanced “all mice” claim.
-- Not absolute-time averages of belief across sessions.
+- Prior map: https://www.nature.com/articles/s41586-025-09226-1
+- BWM activity map: https://www.nature.com/articles/s41586-025-09235-0
+- Standardized behavior: https://elifesciences.org/articles/63711

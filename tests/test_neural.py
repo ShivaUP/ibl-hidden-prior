@@ -11,6 +11,8 @@ from src.neural.regions import unit_in_region
 def test_unit_in_region():
     assert unit_in_region("MOs", "MOs")
     assert unit_in_region("ORBvl", "vlOFC_orbvl")
+    assert unit_in_region("ACAd", "ACAd")
+    assert unit_in_region("MOp", "MOp")
     assert not unit_in_region("VISp", "MOs")
 
 

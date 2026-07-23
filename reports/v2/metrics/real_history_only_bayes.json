@@ -1,29 +1,29 @@
 {
-  "accuracy": 0.7947970863683663,
-  "acc_vs_correct_side": 0.7947970863683663,
-  "cross_entropy": 0.3750661856309002,
-  "ce_vs_correct_side": 0.3750661856309002,
+  "accuracy": 0.8065972903985863,
+  "acc_vs_correct_side": 0.8065972903985863,
+  "cross_entropy": 0.3504464204476418,
+  "ce_vs_correct_side": 0.3504464204476418,
   "domain": "real",
   "regime": "history_only",
   "model_id": "bayes",
   "stage": "real_regime",
-  "n_sessions": 10,
-  "n_trials_pooled": 9610,
+  "n_sessions": 8,
+  "n_trials_pooled": 5093,
   "kyan_diagnostics": {
     "zero_contrast_observed_choice_probability": {
-      "low_p_right_block": 0.39729077828614856,
-      "high_p_right_block": 0.6117611399036943
+      "low_p_right_block": 0.4034452085083502,
+      "high_p_right_block": 0.596359943317286
     },
     "counterfactual_zero_evidence_choice_probability": {
-      "low_p_right_block": 0.39509351624121264,
-      "high_p_right_block": 0.6153161080930488,
-      "history_gap": 0.22022259185183618
+      "low_p_right_block": 0.3946306328890651,
+      "high_p_right_block": 0.6108804699845815,
+      "history_gap": 0.21624983709551637
     },
     "settled_block_zero_evidence_calibration": {
       "definition": "trials at least 15 trials after the most recent switch",
-      "low_p_right_block": 0.3915520300224378,
-      "high_p_right_block": 0.6198962160831301,
-      "mean_absolute_error_to_true_prior": 0.18485950627254477
+      "low_p_right_block": 0.38608803913668066,
+      "high_p_right_block": 0.6142000338830472,
+      "mean_absolute_error_to_true_prior": 0.1846046363814653
     }
   }
 }

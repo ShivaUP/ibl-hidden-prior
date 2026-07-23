@@ -1,29 +1,29 @@
 {
-  "accuracy": 0.8133194588969823,
-  "acc_vs_correct_side": 0.8133194588969823,
-  "cross_entropy": 1.1081605715441207,
-  "ce_vs_correct_side": 1.1081605715441207,
+  "accuracy": 0.8064009424700569,
+  "acc_vs_correct_side": 0.8064009424700569,
+  "cross_entropy": 1.0669443375471301,
+  "ce_vs_correct_side": 1.0669443375471301,
   "domain": "real",
   "regime": "full_information",
   "model_id": "gru",
   "stage": "real_regime",
-  "n_sessions": 10,
-  "n_trials_pooled": 9610,
+  "n_sessions": 8,
+  "n_trials_pooled": 5093,
   "kyan_diagnostics": {
     "zero_contrast_observed_choice_probability": {
-      "low_p_right_block": 0.0004979943432781693,
-      "high_p_right_block": 0.9994912191904192
+      "low_p_right_block": 0.0005472639490025453,
+      "high_p_right_block": 0.9994476488901596
     },
     "counterfactual_zero_evidence_choice_probability": {
-      "low_p_right_block": 0.00048434883744427566,
-      "high_p_right_block": 0.9994779142630854,
-      "history_gap": 0.9989935654256411
+      "low_p_right_block": 0.0005020448922509068,
+      "high_p_right_block": 0.9994753409446605,
+      "history_gap": 0.9989732960524096
     },
     "settled_block_zero_evidence_calibration": {
       "definition": "trials at least 15 trials after the most recent switch",
-      "low_p_right_block": 0.0003415447218143118,
-      "high_p_right_block": 0.9996231978808665,
-      "mean_absolute_error_to_true_prior": 0.1963800072386997
+      "low_p_right_block": 0.0003355388214122225,
+      "high_p_right_block": 0.9995890473807997,
+      "mean_absolute_error_to_true_prior": 0.19617428883000615
     }
   }
 }

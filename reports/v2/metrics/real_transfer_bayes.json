@@ -2,9 +2,9 @@
   "stage": "real_transfer",
   "model_id": "bayes",
   "scoring": "correct_side_only",
-  "accuracy": 0.7947970863683663,
-  "acc_vs_correct_side": 0.7947970863683663,
-  "cross_entropy": 0.3750661856309002,
-  "ce_vs_correct_side": 0.3750661856309002,
-  "n_sessions": 10
+  "accuracy": 0.8065972903985863,
+  "acc_vs_correct_side": 0.8065972903985863,
+  "cross_entropy": 0.3504464204476418,
+  "ce_vs_correct_side": 0.3504464204476418,
+  "n_sessions": 8
 }

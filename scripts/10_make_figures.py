@@ -31,24 +31,28 @@ if str(ROOT) not in sys.path:
 from src.models_v2.rollout import (
     REGIMES,
     switch_centered_per_session,
-    switch_centered_zero_evidence,
+)
+from src.plot.v2_style import (
+    ACCURACY_YLIM,
+    CORRECTNESS_YLIM,
+    MODEL_COLORS,
+    PASTEL,
+    PRIOR_COLORS,
+    SAVE_DPI,
+    apply_style,
+    label_above_bars,
+    mean_ci95,
+    pad_ylim_for_labels,
+    save_figure,
+    session_colors as _session_colors,
+    style_axes_title,
+    style_suptitle,
+    style_xlabel,
+    style_ylabel,
 )
 from src.synthetic.schema import RIGHT, load_synthetic_config
 
 DOMAINS = ("synth", "real")
-
-
-def _session_colors(n: int) -> list:
-    """Distinct colors for n sessions (tab10 / tab20 / hsv fallback)."""
-
-    if n <= 10:
-        cmap = plt.get_cmap("tab10")
-        return [cmap(i) for i in range(n)]
-    if n <= 20:
-        cmap = plt.get_cmap("tab20")
-        return [cmap(i) for i in range(n)]
-    cmap = plt.get_cmap("hsv")
-    return [cmap(i / max(n, 1)) for i in range(n)]
 
 
 def _session_labels(domain: str, n_sess: int) -> list[str]:
@@ -103,6 +107,100 @@ def _valid_mask(roll, true_p: np.ndarray) -> np.ndarray:
     return np.isfinite(true_p)
 
 
+def _session_accuracies(roll) -> np.ndarray:
+    """Per-session correctness vs correct stimulus side (all blocks)."""
+    true_p = _true_p_right(roll)
+    valid = _valid_mask(roll, true_p)
+    choice = np.asarray(roll["choice"])
+    side = np.asarray(roll["side"])
+    n_sess = int(true_p.shape[0])
+    out = np.full(n_sess, np.nan)
+    for s in range(n_sess):
+        v = valid[s]
+        if not np.any(v):
+            continue
+        out[s] = float(np.mean(choice[s][v] == side[s][v]))
+    return out
+
+
+def _session_correctness_at_prior(roll, prior: float) -> np.ndarray:
+    """Per-session correctness restricted to trials with true P(right)≈prior."""
+    true_p = _true_p_right(roll)
+    valid = _valid_mask(roll, true_p)
+    choice = np.asarray(roll["choice"])
+    side = np.asarray(roll["side"])
+    n_sess = int(true_p.shape[0])
+    out = np.full(n_sess, np.nan)
+    for s in range(n_sess):
+        v = valid[s] & np.isclose(true_p[s], prior)
+        if not np.any(v):
+            continue
+        out[s] = float(np.mean(choice[s][v] == side[s][v]))
+    return out
+
+
+def _correctness_ci_at_prior(
+    cfg: dict, domain: str, regime: str, model_id: str, prior: float
+) -> tuple[float, float]:
+    path = _rollout_path(cfg, domain, regime, model_id)
+    if not path.exists():
+        return float("nan"), float("nan")
+    roll = np.load(path)
+    return mean_ci95(_session_correctness_at_prior(roll, prior))
+
+
+def _session_history_gaps(roll) -> np.ndarray:
+    """Per-session history gap from zero-evidence belief."""
+    true_p = _true_p_right(roll)
+    valid = _valid_mask(roll, true_p)
+    belief = _zero_ev(roll)
+    n_sess = int(true_p.shape[0])
+    out = np.full(n_sess, np.nan)
+    for s in range(n_sess):
+        v = valid[s]
+        hi = v & np.isclose(true_p[s], 0.8)
+        lo = v & np.isclose(true_p[s], 0.2)
+        if not (hi.any() and lo.any()):
+            continue
+        out[s] = float(np.nanmean(belief[s][hi]) - np.nanmean(belief[s][lo]))
+    return out
+
+
+def _acc_ci_from_rollout(cfg: dict, domain: str, regime: str, model_id: str) -> tuple[float, float]:
+    path = _rollout_path(cfg, domain, regime, model_id)
+    if not path.exists():
+        return float("nan"), float("nan")
+    roll = np.load(path)
+    return mean_ci95(_session_accuracies(roll))
+
+
+def _gap_ci_from_rollout(cfg: dict, domain: str, regime: str, model_id: str) -> tuple[float, float]:
+    path = _rollout_path(cfg, domain, regime, model_id)
+    if not path.exists():
+        return float("nan"), float("nan")
+    roll = np.load(path)
+    return mean_ci95(_session_history_gaps(roll))
+
+
+def _switch_mean_sem(roll, direction: str, before: int = 20, after: int = 30):
+    """Session-mean switch curve ± SEM across sessions."""
+    per = switch_centered_per_session(roll, before=before, after=after)
+    offsets = np.asarray(per["offsets"])
+    rows = []
+    for curves in per["per_session"]:
+        rows.append(np.asarray(curves[direction], dtype=float))
+    if not rows:
+        nan = np.full_like(offsets, np.nan, dtype=float)
+        return offsets, nan, nan
+    stack = np.vstack(rows)
+    mean = np.nanmean(stack, axis=0)
+    n = np.sum(np.isfinite(stack), axis=0)
+    with np.errstate(invalid="ignore"):
+        std = np.nanstd(stack, axis=0, ddof=1)
+    sem = np.where(n >= 2, std / np.sqrt(n), 0.0)
+    return offsets, mean, sem
+
+
 def _plot_psychometric(ax, roll, regime: str, domain: str) -> None:
     true_p = _true_p_right(roll)
     p_choice = _p_choice(roll)
@@ -112,39 +210,67 @@ def _plot_psychometric(ax, roll, regime: str, domain: str) -> None:
     signed = np.where(side == RIGHT, contrast, -contrast)
     signed = np.where(valid, signed, np.nan)
     unique_signed = np.unique(np.round(signed[np.isfinite(signed)], 5))
+    n_sess = int(true_p.shape[0])
+
+    def _sess_means(prior: float | None, value: float) -> np.ndarray:
+        vals = []
+        for s in range(n_sess):
+            v = valid[s]
+            mask = v & np.isclose(signed[s], value)
+            if prior is not None:
+                mask = mask & np.isclose(true_p[s], prior)
+            if mask.any():
+                vals.append(float(np.nanmean(p_choice[s][mask])))
+        return np.asarray(vals, dtype=float)
 
     if domain == "synth":
-        # Averages only (pool all synthetic sessions).
         if regime == "fixed_prior":
-            means, xs = [], []
+            xs, means, errs = [], [], []
             for value in unique_signed:
-                mask = valid & np.isclose(signed, value)
-                if mask.any():
+                sm = _sess_means(None, float(value))
+                if sm.size:
+                    m, e = mean_ci95(sm)
                     xs.append(float(value))
-                    means.append(float(np.nanmean(p_choice[mask])))
+                    means.append(m)
+                    errs.append(e)
             if xs:
-                ax.plot(xs, means, marker="o", color="#0072b2", label="mean P(choice|contrast)")
+                ax.errorbar(
+                    xs,
+                    means,
+                    yerr=errs,
+                    marker="o",
+                    color=PASTEL["blue"],
+                    ecolor=PASTEL["ink"],
+                    capsize=3,
+                    label="mean ± 95% CI (sessions)",
+                )
         else:
-            for prior, color in ((0.2, "#d55e00"), (0.8, "#0072b2")):
-                means, xs = [], []
+            for prior, color, lab in (
+                (0.2, PASTEL["orange"], "block P(right)=0.2"),
+                (0.8, PASTEL["blue"], "block P(right)=0.8"),
+            ):
+                xs, means, errs = [], [], []
                 for value in unique_signed:
-                    mask = valid & np.isclose(true_p, prior) & np.isclose(signed, value)
-                    if mask.any():
+                    sm = _sess_means(prior, float(value))
+                    if sm.size:
+                        m, e = mean_ci95(sm)
                         xs.append(float(value))
-                        means.append(float(np.nanmean(p_choice[mask])))
+                        means.append(m)
+                        errs.append(e)
                 if xs:
-                    ax.plot(
+                    ax.errorbar(
                         xs,
                         means,
+                        yerr=errs,
                         marker="o",
                         color=color,
-                        label=f"mean, block P(right)={prior:.1f}",
+                        ecolor=PASTEL["ink"],
+                        capsize=3,
+                        label=f"{lab} (±95% CI)",
                     )
-        title = f"Psychometric (synth average, {regime})"
+        title = f"Psychometric (synth mean ± 95% CI, {regime})"
     else:
-        n_sess = int(true_p.shape[0])
         colors = _session_colors(n_sess)
-        labels = _session_labels(domain, n_sess)
         for s in range(n_sess):
             color = colors[s]
             v = valid[s]
@@ -163,9 +289,9 @@ def _plot_psychometric(ax, roll, regime: str, domain: str) -> None:
                         markersize=3,
                         color=color,
                         alpha=0.85,
-                        label=labels[s],
                     )
             else:
+                # One color per session; linestyle encodes block prior (0.2 / 0.8 only)
                 for prior, ls in ((0.2, "--"), (0.8, "-")):
                     means, xs = [], []
                     for value in unique_signed:
@@ -186,21 +312,27 @@ def _plot_psychometric(ax, roll, regime: str, domain: str) -> None:
                             linestyle=ls,
                             color=color,
                             alpha=0.85,
-                            label=labels[s] if prior == 0.8 else None,
                         )
         title = f"Psychometric by session (real, {regime})"
         if regime != "fixed_prior":
-            title += "\nsolid=0.8 prior, dashed=0.2 prior"
+            title += "\ncolor=session; solid=0.8, dashed=0.2"
 
-    ax.axhline(0.5, color="0.7", linewidth=1)
-    ax.axvline(0.0, color="0.7", linewidth=1)
-    ax.set(
-        title=title,
-        xlabel="Signed contrast (left −, right +)",
-        ylabel="P(choice right)",
-        ylim=(-0.03, 1.03),
-    )
-    ax.legend(frameon=False, fontsize=6 if domain == "real" else 8, ncol=2, loc="best")
+    ax.axhline(0.5, color=PASTEL["gray"], linewidth=1)
+    ax.axvline(0.0, color=PASTEL["gray"], linewidth=1)
+    ax.set_ylim(-0.03, 1.03)
+    style_axes_title(ax, title)
+    style_xlabel(ax, "Signed contrast (left −, right +)")
+    style_ylabel(ax, "P(choice right)")
+    if domain == "synth":
+        ax.legend(
+            frameon=False,
+            fontsize=8,
+            ncol=2,
+            loc="upper left",
+            bbox_to_anchor=(0.0, 1.0),
+            borderaxespad=0.4,
+        )
+    # Real: colors distinguish sessions; no per-session legend labels
 
 
 def _plot_switch(ax, roll, regime: str, domain: str) -> None:
@@ -213,121 +345,125 @@ def _plot_switch(ax, roll, regime: str, domain: str) -> None:
             va="center",
             transform=ax.transAxes,
         )
-        ax.set(
-            title="Belief adaptation (N/A)",
-            xlabel="Trials relative to switch",
-            ylabel="P(right) zero evidence",
-        )
+        style_axes_title(ax, "Belief adaptation (N/A)")
+        style_xlabel(ax, "Trials relative to switch")
+        style_ylabel(ax, "P(right) zero evidence")
         return
 
-    mean = switch_centered_zero_evidence(roll, before=20, after=30)
     if domain == "synth":
-        ax.plot(
-            mean["offsets"],
-            mean["low_to_high"],
-            color="#0072b2",
-            linewidth=2.0,
-            label="mean 0.2→0.8",
-        )
-        ax.plot(
-            mean["offsets"],
-            mean["high_to_low"],
-            color="#d55e00",
-            linewidth=2.0,
-            label="mean 0.8→0.2",
-        )
-        title = "Belief adaptation (synth average)"
+        for direction, color, label in (
+            ("low_to_high", PASTEL["blue"], "0.2→0.8"),
+            ("high_to_low", PASTEL["orange"], "0.8→0.2"),
+        ):
+            offsets, mean, sem = _switch_mean_sem(roll, direction)
+            ax.plot(offsets, mean, color=color, linewidth=2.0, label=f"mean {label}")
+            ax.fill_between(
+                offsets,
+                mean - sem,
+                mean + sem,
+                color=color,
+                alpha=0.35,
+                linewidth=0,
+                label="± SEM" if direction == "low_to_high" else None,
+            )
+        title = "Belief adaptation (synth mean ± SEM)"
         leg_fs = 8
+        show_legend = True
     else:
         per = switch_centered_per_session(roll, before=20, after=30)
         offsets = per["offsets"]
         n_sess = len(per["per_session"])
         colors = _session_colors(n_sess)
-        labels = _session_labels(domain, n_sess)
         for s, curves in enumerate(per["per_session"]):
             color = colors[s]
             ax.plot(
                 offsets,
                 curves["low_to_high"],
                 color=color,
-                alpha=0.7,
-                linewidth=1.1,
-                label=labels[s],
+                alpha=0.55,
+                linewidth=1.0,
             )
             ax.plot(
                 offsets,
                 curves["high_to_low"],
                 color=color,
-                alpha=0.7,
-                linewidth=1.1,
+                alpha=0.55,
+                linewidth=1.0,
                 linestyle="--",
             )
-        ax.plot(
-            mean["offsets"],
-            mean["low_to_high"],
-            color="black",
-            linewidth=2.2,
-            label="mean 0.2→0.8",
+        for direction, ls, label in (
+            ("low_to_high", "-", "mean 0.2→0.8"),
+            ("high_to_low", "--", "mean 0.8→0.2"),
+        ):
+            off, m, sem = _switch_mean_sem(roll, direction)
+            ax.plot(off, m, color=PASTEL["ink"], linewidth=2.2, linestyle=ls, label=label)
+            ax.fill_between(off, m - sem, m + sem, color=PASTEL["ink"], alpha=0.18, linewidth=0)
+        title = (
+            "Belief adaptation by session (real)\n"
+            "color=session; solid 0.2→0.8, dashed 0.8→0.2 (± SEM mean)"
         )
-        ax.plot(
-            mean["offsets"],
-            mean["high_to_low"],
-            color="black",
-            linewidth=2.2,
-            linestyle="--",
-            label="mean 0.8→0.2",
+        leg_fs = 8
+        show_legend = True
+
+    ax.axvline(0, color=PASTEL["ink"], linestyle=":", linewidth=1)
+    ax.set_ylim(-0.03, 1.03)
+    style_axes_title(ax, title)
+    style_xlabel(ax, "Trials relative to switch")
+    style_ylabel(ax, "P(right) with zero sensory evidence")
+    if show_legend:
+        ax.legend(
+            frameon=False,
+            fontsize=leg_fs,
+            ncol=2,
+            loc="lower right",
+            borderaxespad=0.5,
         )
-        title = "Belief adaptation by session (real)\nsolid 0.2→0.8, dashed 0.8→0.2"
-        leg_fs = 5.5
-
-    ax.axvline(0, color="0.3", linestyle=":", linewidth=1)
-    ax.set(
-        title=title,
-        xlabel="Trials relative to switch",
-        ylabel="P(right) with zero sensory evidence",
-        ylim=(-0.03, 1.03),
-    )
-    ax.legend(frameon=False, fontsize=leg_fs, ncol=2, loc="best")
 
 
-def _best_session_index(roll, true_p: np.ndarray) -> tuple[int, float]:
-    """Session with highest accuracy vs correct side (ties → more valid trials)."""
+def _example_session_index(roll, true_p: np.ndarray) -> tuple[int, float]:
+    """Prefer a high-accuracy session that contains 0.2, 0.5, and 0.8 blocks.
 
+    Zero-evidence belief is defined on every trial; showing all three block types
+    makes the example readable. Falls back to best accuracy if no session has all
+    three priors.
+    """
     valid = _valid_mask(roll, true_p)
     choice = roll["choice"]
     side = roll["side"]
     n_sess = int(true_p.shape[0])
-    best_i, best_key = 0, (-1.0, -1)
+    best_i, best_key = 0, (-1, -1.0, -1)  # (n_prior_types, acc, n)
     for s in range(n_sess):
         v = valid[s]
         if not v.any():
             continue
+        priors = {float(np.round(p, 1)) for p in true_p[s][v]}
+        n_types = sum(1 for p in (0.2, 0.5, 0.8) if any(abs(x - p) < 1e-6 for x in priors))
         acc = float(np.mean(choice[s][v] == side[s][v]))
         n = int(v.sum())
-        key = (acc, n)
+        key = (n_types, acc, n)
         if key > best_key:
             best_key = key
             best_i = s
-    return best_i, float(best_key[0]) if best_key[0] >= 0 else float("nan")
+    return best_i, float(best_key[1]) if best_key[1] >= 0 else float("nan")
 
 
 def _plot_example_session(ax, roll, regime: str, domain: str) -> None:
     true_p = _true_p_right(roll)
     zero_ev = _zero_ev(roll)
     valid = _valid_mask(roll, true_p)
-    sess, acc = _best_session_index(roll, true_p)
-    labels = _session_labels(domain, int(true_p.shape[0]))
+    sess, acc = _example_session_index(roll, true_p)
     colors = _session_colors(int(true_p.shape[0]))
     color = colors[sess]
 
     v = valid[sess]
     last = int(np.flatnonzero(v)[-1]) + 1 if v.any() else 0
     trials = np.arange(last)
+    # True block prior (0.2 / 0.5 / 0.8) and model zero-evidence on every trial
     ax.step(
         trials,
         true_p[sess, :last],
         where="post",
-        color="black",
+        color=PASTEL["ink"],
         linewidth=1.5,
         label="true block P(right)",
     )
@@ -337,19 +473,21 @@ def _plot_example_session(ax, roll, regime: str, domain: str) -> None:
         color=color,
         alpha=0.95,
         linewidth=1.6,
-        label=f"model zero-evidence ({labels[sess]})",
+        label="model zero-evidence",
     )
-    ax.set(
-        title=(
-            f"Best session {labels[sess]} "
-            f"(acc={acc:.3f}, n={last}; {domain}, {regime})"
-        ),
-        xlabel="Trial (this session only)",
-        ylabel="Probability right",
-        ylim=(-0.03, 1.03),
-        xlim=(0, max(last - 1, 1)),
+    # Light guides at each block prior level
+    for y, ls in ((0.2, "--"), (0.5, ":"), (0.8, "--")):
+        ax.axhline(y, color=PASTEL["gray"], lw=0.6, ls=ls, alpha=0.7)
+    ax.set_ylim(-0.03, 1.03)
+    ax.set_xlim(0, max(last - 1, 1))
+    n_types = len({float(np.round(p, 1)) for p in true_p[sess][v]}) if v.any() else 0
+    style_axes_title(
+        ax,
+        f"Example session (acc={acc:.3f}, n={last}, {n_types} prior levels; {domain}, {regime})",
     )
-    ax.legend(frameon=False, fontsize=8)
+    style_xlabel(ax, "Trial (this session only)")
+    style_ylabel(ax, "Probability right")
+    ax.legend(frameon=False, fontsize=8, loc="best", borderaxespad=0.5)
 
 
 def _plot_all_sessions_timeline(ax, roll, regime: str, domain: str) -> None:
@@ -358,7 +496,6 @@ def _plot_all_sessions_timeline(ax, roll, regime: str, domain: str) -> None:
     valid = _valid_mask(roll, true_p)
     n_sess = int(true_p.shape[0])
     colors = _session_colors(n_sess)
-    labels = _session_labels(domain, n_sess)
     t_max = 0
 
     for s in range(n_sess):
@@ -383,20 +520,18 @@ def _plot_all_sessions_timeline(ax, roll, regime: str, domain: str) -> None:
             color=color,
             alpha=0.9,
             linewidth=1.2,
-            label=labels[s],
         )
 
-    ax.set(
-        title=(
-            f"All sessions ({domain}, {regime}; n={n_sess})\n"
-            "colored: model zero-evidence; faint step: true prior"
-        ),
-        xlabel="Trial (per session)",
-        ylabel="Probability right",
-        ylim=(-0.03, 1.03),
-        xlim=(0, max(t_max - 1, 1)),
+    ax.set_ylim(-0.03, 1.03)
+    ax.set_xlim(0, max(t_max - 1, 1))
+    style_axes_title(
+        ax,
+        f"All sessions ({domain}, {regime}; n={n_sess})\n"
+        "color=session zero-evidence; faint step=true prior (0.2/0.5/0.8)",
     )
-    ax.legend(frameon=False, fontsize=5.5, ncol=2, loc="best")
+    style_xlabel(ax, "Trial (per session)")
+    style_ylabel(ax, "Probability right")
+    # No per-session legend: color alone encodes session identity
 
 
 def per_model_domain_regime_figure(
@@ -414,24 +549,29 @@ def per_model_domain_regime_figure(
     hist = json.loads(hist_path.read_text())["history"]
     roll = np.load(roll_path)
 
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True)
+    fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.10, wspace=0.08, hspace=0.12)
 
     ax = axes[0, 0]
-    ax.plot([h["epoch"] for h in hist], [h["loss"] for h in hist], color="#3b6ea8")
+    ax.plot([h["epoch"] for h in hist], [h["loss"] for h in hist], color=PASTEL["blue"])
     ylab = "PC energy / step" if model_id == "tanh_pc" else "Response cross-entropy"
-    ax.set(title="Training (synth)", xlabel="Epoch", ylabel=ylab)
+    style_axes_title(ax, "Training (synth)")
+    style_xlabel(ax, "Epoch")
+    style_ylabel(ax, ylab)
 
     _plot_psychometric(axes[0, 1], roll, regime, domain)
     _plot_switch(axes[1, 0], roll, regime, domain)
     _plot_example_session(axes[1, 1], roll, regime, domain)
 
-    fig.suptitle(
-        f"Hidden-prior diagnostics — {model_id} — {domain} — {regime}", fontsize=13
+    style_suptitle(
+        fig,
+        f"Hidden-prior diagnostics — {model_id} — {domain} — {regime}",
+        y=1.03,
     )
     out = fig_root / "by_model" / model_id / domain / regime
     out.mkdir(parents=True, exist_ok=True)
     path = out / "multipanel_diagnostics.png"
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path)
     plt.close(fig)
 
     # Legacy aliases for history_only synth
@@ -454,13 +594,6 @@ def _load_metric_rows(cfg: dict, domain: str, regime: str) -> list[dict]:
             rows.append(json.loads(path.read_text()))
     return rows
 
-
-MODEL_COLORS = {
-    "tanh_bptt": "#4c72b0",
-    "tanh_pc": "#55a868",
-    "gru": "#c44e52",
-    "bayes": "#8172b3",
-}
 
 MODEL_LABELS = {
     "tanh_bptt": "tanh BPTT",
@@ -487,28 +620,35 @@ def _pretty(mid: str) -> str:
     return MODEL_LABELS.get(mid, mid)
 
 
+def _label_above_bar(ax, bars, values, errs, *, pad: float = 0.012, fontsize: int = 8) -> None:
+    """Place numeric labels just above each bar (not above the CI tip)."""
+    label_above_bars(ax, bars, values, errs, pad=pad, fontsize=fontsize)
+
+
 def _model_scorecard(cfg: dict, domain: str, regime: str, out: Path) -> Path | None:
     rows = _load_metric_rows(cfg, domain, regime)
     if not rows:
         return None
     names = [r["model_id"] for r in rows]
-    colors = [MODEL_COLORS.get(m, "#888888") for m in names]
+    colors = [MODEL_COLORS.get(m, PASTEL["gray"]) for m in names]
     labels = [_pretty(m) for m in names]
 
-    fig = plt.figure(figsize=(12.5, 8.5), constrained_layout=True)
-    gs = fig.add_gridspec(2, 2, height_ratios=[1.35, 1.15])
+    fig = plt.figure(figsize=(13.0, 9.4), constrained_layout=True)
+    fig.set_constrained_layout_pads(w_pad=0.06, h_pad=0.08, wspace=0.06, hspace=0.10)
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.15, 1.35])
 
     ax0 = fig.add_subplot(gs[0, :])
     ax0.axis("off")
     if domain == "synth":
         data_line = (
             "Data: synthetic held-out sessions from the same generator used in training. "
-            "Bars are pooled across those sessions (averages)."
+            "Bars are session-means (± 95% CI across sessions)."
         )
     else:
         data_line = (
-            "Data: 10 QC behavior-core real sessions (`behavior_core_eids.json`). "
-            "Bars are pooled over all valid trials in those sessions."
+            "Data: shared behavior+neural cohort "
+            "(`shared_behavior_neural_eids.json`). "
+            "Bars are session-means (± 95% CI across sessions)."
         )
 
     if regime == "history_only":
@@ -531,36 +671,44 @@ def _model_scorecard(cfg: dict, domain: str, regime: str, out: Path) -> Path | N
         f"Scorecard — {domain} — {regime}\n\n"
         f"{data_line}\n"
         f"{regime_line}\n\n"
-        "Scoring (both panels): model choice / probabilities vs the correct stimulus side. "
-        "Mouse choice is never the target.\n\n"
-        "Left panel — Accuracy:\n"
+        "Scoring: model choice vs the correct stimulus side (never mouse choice).\n\n"
+        "Left — Correctness:\n"
         "  Fraction of trials where argmax(model choice) equals the true stimulus side. "
-        "Range [0, 1]. Chance ≈ 0.5 if sides are balanced.\n"
-        "  Black outline marks the highest accuracy among plotted models.\n\n"
-        "Right panel — History gap:\n"
-        "  Mean zero-evidence P(choice=right) on trials in blocks with true P(right)=0.8, "
-        "minus the same quantity on blocks with true P(right)=0.2.\n"
-        "  Zero-evidence = model preference when sensory contrast is held at 0 (counterfactual probe).\n"
-        "  A gap near 0 means little use of block history; a larger positive gap means the model "
-        "systematically prefers right more in right-biased blocks than in left-biased blocks.\n"
-        "  Black outline marks the largest absolute gap among plotted models.\n"
-        "  Switch dynamics (how fast the preference moves after a switch) are in "
-        "`comparison/*_switch_board.png`, not here.\n"
+        "Y-axis 0.50–1.00. Outline = highest correctness.\n"
+        "  See also comparison/*_correctness_by_prior.png for P(right)=0.2/0.5/0.8 breakdown "
+        "(overall correctness can be driven by one block type).\n\n"
+        "Right — History gap:\n"
+        "  Mean zero-evidence P(right|block 0.8) − P(right|block 0.2). "
+        "Near 0 = little prior use; large positive = strong block-tuned bias.\n"
     )
     ax0.text(0.0, 1.0, glossary, transform=ax0.transAxes, va="top", ha="left", fontsize=9.2)
 
     ax1 = fig.add_subplot(gs[1, 0])
-    acc = [_acc(r) for r in rows]
-    bars = ax1.bar(labels, acc, color=colors)
+    acc, acc_err = [], []
+    for r in rows:
+        mid = r["model_id"]
+        m, e = _acc_ci_from_rollout(cfg, domain, regime, mid)
+        if not np.isfinite(m):
+            m = _acc(r)
+            e = 0.0
+        acc.append(m)
+        acc_err.append(e if np.isfinite(e) else 0.0)
+    bars = ax1.bar(
+        labels,
+        acc,
+        color=colors,
+        yerr=acc_err,
+        capsize=4,
+        ecolor=PASTEL["ink"],
+        error_kw={"linewidth": 1.0},
+    )
     if np.any(np.isfinite(acc)):
-        bars[int(np.nanargmax(acc))].set_edgecolor("black")
+        bars[int(np.nanargmax(acc))].set_edgecolor(PASTEL["ink"])
         bars[int(np.nanargmax(acc))].set_linewidth(2.0)
-    ax1.set_ylim(0, 1)
-    ax1.set_ylabel("Accuracy vs correct side")
-    ax1.set_title("Accuracy")
-    for b, v in zip(bars, acc):
-        if np.isfinite(v):
-            ax1.text(b.get_x() + b.get_width() / 2, v + 0.02, f"{v:.3f}", ha="center", fontsize=8)
+    pad_ylim_for_labels(ax1, acc, acc_err, floor=CORRECTNESS_YLIM[0], headroom=0.07)
+    style_ylabel(ax1, "Correctness vs correct stimulus side")
+    style_axes_title(ax1, "Correctness (mean ± 95% CI)")
+    _label_above_bar(ax1, bars, acc, acc_err, pad=0.010)
 
     ax2 = fig.add_subplot(gs[1, 1])
     if regime == "fixed_prior":
@@ -574,27 +722,174 @@ def _model_scorecard(cfg: dict, domain: str, regime: str, out: Path) -> Path | N
             fontsize=11,
         )
     else:
-        gaps = [_history_gap(r) for r in rows]
-        bars2 = ax2.bar(labels, gaps, color=colors)
+        gaps, gap_err = [], []
+        for r in rows:
+            mid = r["model_id"]
+            m, e = _gap_ci_from_rollout(cfg, domain, regime, mid)
+            if not np.isfinite(m):
+                m = _history_gap(r)
+                e = 0.0
+            gaps.append(m)
+            gap_err.append(e if np.isfinite(e) else 0.0)
+        bars2 = ax2.bar(
+            labels,
+            gaps,
+            color=colors,
+            yerr=gap_err,
+            capsize=4,
+            ecolor=PASTEL["ink"],
+            error_kw={"linewidth": 1.0},
+        )
         if np.any(np.isfinite(gaps)):
             i = int(np.nanargmax(np.abs(gaps)))
-            bars2[i].set_edgecolor("black")
+            bars2[i].set_edgecolor(PASTEL["ink"])
             bars2[i].set_linewidth(2.0)
-        ax2.axhline(0.0, color="0.5", lw=0.8)
-        ax2.set_ylabel("History gap (0.8 − 0.2)")
-        ax2.set_title("History gap")
-        for b, v in zip(bars2, gaps):
-            if np.isfinite(v):
-                ax2.text(
-                    b.get_x() + b.get_width() / 2,
-                    v + (0.02 if v >= 0 else -0.04),
-                    f"{v:.3f}",
-                    ha="center",
-                    fontsize=8,
-                )
+        ax2.axhline(0.0, color=PASTEL["gray"], lw=0.8)
+        pad_ylim_for_labels(ax2, gaps, gap_err, headroom=0.08)
+        style_ylabel(ax2, "History gap (0.8 − 0.2)")
+        style_axes_title(ax2, "History gap (mean ± 95% CI)")
+        for b, v, e in zip(bars2, gaps, gap_err):
+            if not np.isfinite(v):
+                continue
+            y = v + (0.014 if v >= 0 else -0.020)
+            ax2.text(
+                b.get_x() + b.get_width() / 2,
+                y,
+                f"{v:.3f}",
+                ha="center",
+                va="bottom" if v >= 0 else "top",
+                fontsize=8,
+                clip_on=True,
+            )
 
     path = out / f"{domain}_{regime}_scorecard.png"
-    fig.savefig(path, dpi=150)
+    save_figure(fig, path)
+    plt.close(fig)
+    return path
+
+
+def _correctness_by_prior_board(cfg: dict, domain: str, regime: str, out: Path) -> Path | None:
+    """Grouped bars: correctness in P(right)=0.2 / 0.5 / 0.8 blocks (+ balanced mean).
+
+    Presentation choice: models on x-axis; three prior-colored bars per model so you can
+    see whether overall correctness is driven by one block type. A dashed marker shows
+    the equal-weight mean across available priors (balanced correctness).
+    """
+    models = [m for m in cfg["models"] if _rollout_path(cfg, domain, regime, m).exists()]
+    if not models:
+        return None
+    priors = (0.5,) if regime == "fixed_prior" else (0.2, 0.5, 0.8)
+    labels = [_pretty(m) for m in models]
+    x = np.arange(len(models))
+    n_priors = len(priors)
+    width = 0.72 / n_priors
+
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(14.5, 6.0),
+        constrained_layout=True,
+        gridspec_kw={"width_ratios": [2.2, 1.0]},
+    )
+    fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.12, wspace=0.10, hspace=0.10)
+    ax, axb = axes
+
+    balanced = []
+    balanced_err = []
+    all_prior_means = []
+    all_prior_errs = []
+    for i, mid in enumerate(models):
+        prior_means = []
+        prior_errs = []
+        for j, prior in enumerate(priors):
+            m, e = _correctness_ci_at_prior(cfg, domain, regime, mid, prior)
+            prior_means.append(m)
+            prior_errs.append(e if np.isfinite(e) else 0.0)
+            xpos = x[i] - 0.36 + width / 2 + j * width
+            ax.bar(
+                xpos,
+                m if np.isfinite(m) else 0.0,
+                width * 0.90,
+                color=PRIOR_COLORS.get(prior, PASTEL["gray"]),
+                yerr=e if np.isfinite(e) else 0.0,
+                capsize=3,
+                ecolor=PASTEL["ink"],
+                error_kw={"linewidth": 0.9},
+                label=f"P(right)={prior:.1f}" if i == 0 else None,
+            )
+            if np.isfinite(m):
+                # Slightly above bar face; ylim padded below so this never clips
+                ax.text(
+                    xpos,
+                    m + 0.012,
+                    f"{m:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                    clip_on=True,
+                )
+        all_prior_means.extend(prior_means)
+        all_prior_errs.extend(prior_errs)
+        finite = [v for v in prior_means if np.isfinite(v)]
+        if finite:
+            bal = float(np.mean(finite))
+            errs = [e for e, v in zip(prior_errs, prior_means) if np.isfinite(v)]
+            bal_e = float(np.mean(errs) / np.sqrt(len(errs))) if errs else 0.0
+        else:
+            bal, bal_e = float("nan"), 0.0
+        balanced.append(bal)
+        balanced_err.append(bal_e)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    pad_ylim_for_labels(
+        ax,
+        all_prior_means,
+        all_prior_errs,
+        floor=CORRECTNESS_YLIM[0],
+        headroom=0.08,
+    )
+    style_ylabel(ax, "Correctness vs correct stimulus side")
+    style_axes_title(
+        ax,
+        f"Correctness by block prior — {domain} — {regime}\n(grouped bars; mean ± 95% CI)",
+    )
+    ax.legend(frameon=False, fontsize=8, loc="lower right", borderaxespad=0.6)
+    ax.axhline(0.5, color=PASTEL["gray"], lw=0.8, ls=":")
+
+    bcols = [MODEL_COLORS.get(m, PASTEL["gray"]) for m in models]
+    bars = axb.bar(
+        labels,
+        balanced,
+        color=bcols,
+        yerr=balanced_err,
+        capsize=4,
+        ecolor=PASTEL["ink"],
+    )
+    if np.any(np.isfinite(balanced)):
+        bars[int(np.nanargmax(balanced))].set_edgecolor(PASTEL["ink"])
+        bars[int(np.nanargmax(balanced))].set_linewidth(2.0)
+    pad_ylim_for_labels(
+        axb,
+        balanced,
+        balanced_err,
+        floor=CORRECTNESS_YLIM[0],
+        headroom=0.08,
+    )
+    style_ylabel(axb, "Balanced correctness")
+    style_axes_title(
+        axb,
+        "Balanced correctness\n(equal weight 0.2/0.5/0.8)",
+    )
+    _label_above_bar(axb, bars, balanced, balanced_err, pad=0.010)
+
+    style_suptitle(
+        fig,
+        "Does one block type drive overall correctness? Compare priors + balanced score",
+        y=1.05,
+    )
+    path = out / f"{domain}_{regime}_correctness_by_prior.png"
+    save_figure(fig, path)
     plt.close(fig)
     return path
 
@@ -602,17 +897,26 @@ def _model_scorecard(cfg: dict, domain: str, regime: str, out: Path) -> Path | N
 def _model_switch_board(cfg: dict, domain: str, regime: str, out: Path) -> Path | None:
     if regime == "fixed_prior":
         return None
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), constrained_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8), constrained_layout=True)
+    fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.10, wspace=0.10, hspace=0.10)
     any_curve = False
     for mid in cfg["models"]:
         path = _rollout_path(cfg, domain, regime, mid)
         if not path.exists():
             continue
         roll = np.load(path)
-        curve = switch_centered_zero_evidence(roll, before=20, after=30)
-        color = MODEL_COLORS.get(mid, "#888888")
-        axes[0].plot(curve["offsets"], curve["low_to_high"], color=color, lw=2.0, label=_pretty(mid))
-        axes[1].plot(curve["offsets"], curve["high_to_low"], color=color, lw=2.0, label=_pretty(mid))
+        color = MODEL_COLORS.get(mid, PASTEL["gray"])
+        for ax, direction in zip(axes, ("low_to_high", "high_to_low")):
+            offsets, mean, sem = _switch_mean_sem(roll, direction)
+            ax.plot(offsets, mean, color=color, lw=2.0, label=_pretty(mid))
+            ax.fill_between(
+                offsets,
+                mean - sem,
+                mean + sem,
+                color=color,
+                alpha=0.30,
+                linewidth=0,
+            )
         any_curve = True
     if not any_curve:
         plt.close(fig)
@@ -624,18 +928,20 @@ def _model_switch_board(cfg: dict, domain: str, regime: str, out: Path) -> Path 
             "After switch 0.8 → 0.2\n(should fall toward ~0.2)",
         ),
     ):
-        ax.axvline(0, color="0.3", ls=":", lw=1)
-        ax.axhline(0.5, color="0.85", lw=1)
-        ax.set(
-            title=title,
-            xlabel="Trials relative to block switch",
-            ylabel="Model zero-evidence P(right)",
-            ylim=(-0.03, 1.03),
-        )
-        ax.legend(frameon=False, fontsize=8)
-    fig.suptitle(f"How fast each model updates its prior — {domain} — {regime}", fontsize=12)
+        ax.axvline(0, color=PASTEL["ink"], ls=":", lw=1)
+        ax.axhline(0.5, color=PASTEL["gray"], lw=1)
+        ax.set_ylim(-0.03, 1.03)
+        style_axes_title(ax, title)
+        style_xlabel(ax, "Trials relative to block switch")
+        style_ylabel(ax, "Model zero-evidence P(right)")
+        ax.legend(frameon=False, fontsize=8, loc="best", borderaxespad=0.5)
+    style_suptitle(
+        fig,
+        f"How fast each model updates its prior — {domain} — {regime} (mean ± SEM)",
+        y=1.05,
+    )
     path = out / f"{domain}_{regime}_switch_board.png"
-    fig.savefig(path, dpi=150)
+    save_figure(fig, path)
     plt.close(fig)
     return path
 
@@ -643,49 +949,116 @@ def _model_switch_board(cfg: dict, domain: str, regime: str, out: Path) -> Path 
 def _synth_vs_real_board(cfg: dict, regime: str, out: Path) -> Path | None:
     models = list(cfg["models"])
     names, synth_acc, real_acc, synth_gap, real_gap = [], [], [], [], []
+    synth_acc_e, real_acc_e, synth_gap_e, real_gap_e = [], [], [], []
     for mid in models:
         sp = _metrics_path(cfg, "synth", regime, mid)
         rp = _metrics_path(cfg, "real", regime, mid)
         if not (sp.exists() and rp.exists()):
             continue
-        s = json.loads(sp.read_text())
-        r = json.loads(rp.read_text())
         names.append(_pretty(mid))
-        synth_acc.append(_acc(s))
-        real_acc.append(_acc(r))
-        synth_gap.append(_history_gap(s))
-        real_gap.append(_history_gap(r))
+        sa, se = _acc_ci_from_rollout(cfg, "synth", regime, mid)
+        ra, re = _acc_ci_from_rollout(cfg, "real", regime, mid)
+        if not np.isfinite(sa):
+            sa, se = _acc(json.loads(sp.read_text())), 0.0
+        if not np.isfinite(ra):
+            ra, re = _acc(json.loads(rp.read_text())), 0.0
+        synth_acc.append(sa)
+        real_acc.append(ra)
+        synth_acc_e.append(se if np.isfinite(se) else 0.0)
+        real_acc_e.append(re if np.isfinite(re) else 0.0)
+        if regime != "fixed_prior":
+            sg, sge = _gap_ci_from_rollout(cfg, "synth", regime, mid)
+            rg, rge = _gap_ci_from_rollout(cfg, "real", regime, mid)
+            if not np.isfinite(sg):
+                sg, sge = _history_gap(json.loads(sp.read_text())), 0.0
+            if not np.isfinite(rg):
+                rg, rge = _history_gap(json.loads(rp.read_text())), 0.0
+            synth_gap.append(sg)
+            real_gap.append(rg)
+            synth_gap_e.append(sge if np.isfinite(sge) else 0.0)
+            real_gap_e.append(rge if np.isfinite(rge) else 0.0)
     if not names:
         return None
 
     n_panels = 1 if regime == "fixed_prior" else 2
-    fig, axes = plt.subplots(1, n_panels, figsize=(5.5 * n_panels, 4.2), constrained_layout=True)
+    fig, axes = plt.subplots(
+        1, n_panels, figsize=(6.0 * n_panels, 4.8), constrained_layout=True
+    )
+    fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.10, wspace=0.10, hspace=0.10)
     if n_panels == 1:
         axes = [axes]
     x = np.arange(len(names))
     w = 0.35
-    axes[0].bar(x - w / 2, synth_acc, w, label="Synth held-out", color="#4c72b0")
-    axes[0].bar(x + w / 2, real_acc, w, label="Real (correct side)", color="#dd8452")
+    axes[0].bar(
+        x - w / 2,
+        synth_acc,
+        w,
+        yerr=synth_acc_e,
+        capsize=3,
+        label="Synth held-out",
+        color=PASTEL["blue"],
+        ecolor=PASTEL["ink"],
+    )
+    axes[0].bar(
+        x + w / 2,
+        real_acc,
+        w,
+        yerr=real_acc_e,
+        capsize=3,
+        label="Real (correct side)",
+        color=PASTEL["orange"],
+        ecolor=PASTEL["ink"],
+    )
     axes[0].set_xticks(x)
     axes[0].set_xticklabels(names)
-    axes[0].set_ylim(0, 1)
-    axes[0].set_ylabel("Accuracy vs correct side")
-    axes[0].set_title("Does synth ranking transfer to real?")
-    axes[0].legend(frameon=False, fontsize=8)
+    pad_ylim_for_labels(
+        axes[0],
+        list(synth_acc) + list(real_acc),
+        list(synth_acc_e) + list(real_acc_e),
+        floor=CORRECTNESS_YLIM[0],
+        headroom=0.06,
+    )
+    style_ylabel(axes[0], "Correctness vs correct stimulus side")
+    style_axes_title(axes[0], "Does synth ranking transfer to real?\n(mean ± 95% CI)")
+    axes[0].legend(frameon=False, fontsize=8, loc="lower right", borderaxespad=0.5)
 
     if regime != "fixed_prior":
-        axes[1].bar(x - w / 2, synth_gap, w, label="Synth held-out", color="#55a868")
-        axes[1].bar(x + w / 2, real_gap, w, label="Real", color="#c44e52")
-        axes[1].axhline(0.0, color="0.5", lw=0.8)
+        axes[1].bar(
+            x - w / 2,
+            synth_gap,
+            w,
+            yerr=synth_gap_e,
+            capsize=3,
+            label="Synth held-out",
+            color=PASTEL["green"],
+            ecolor=PASTEL["ink"],
+        )
+        axes[1].bar(
+            x + w / 2,
+            real_gap,
+            w,
+            yerr=real_gap_e,
+            capsize=3,
+            label="Real",
+            color=PASTEL["rose"],
+            ecolor=PASTEL["ink"],
+        )
+        axes[1].axhline(0.0, color=PASTEL["gray"], lw=0.8)
         axes[1].set_xticks(x)
         axes[1].set_xticklabels(names)
-        axes[1].set_ylabel("History gap (0.8 − 0.2)")
-        axes[1].set_title("Does prior-use strength transfer?")
-        axes[1].legend(frameon=False, fontsize=8)
+        pad_ylim_for_labels(
+            axes[1],
+            list(synth_gap) + list(real_gap),
+            list(synth_gap_e) + list(real_gap_e),
+            headroom=0.08,
+        )
+        style_ylabel(axes[1], "History gap (0.8 − 0.2)")
+        style_axes_title(axes[1], "Does prior-use strength transfer?\n(mean ± 95% CI)")
+        axes[1].legend(frameon=False, fontsize=8, loc="best", borderaxespad=0.5)
 
-    fig.suptitle(f"Synth vs real transfer — {regime}", fontsize=12)
+    style_suptitle(fig, f"Synth vs real transfer — {regime}", y=1.05)
     path = out / f"synth_vs_real_{regime}_board.png"
-    fig.savefig(path, dpi=150)
+    save_figure(fig, path)
     plt.close(fig)
     return path
 
@@ -705,29 +1078,43 @@ def comparison_figures(cfg: dict, fig_root: Path) -> list[Path]:
             p = _model_switch_board(cfg, domain, regime, out_cmp)
             if p:
                 paths.append(p)
+            p = _correctness_by_prior_board(cfg, domain, regime, out_cmp)
+            if p:
+                paths.append(p)
         p = _synth_vs_real_board(cfg, regime, out_cmp)
         if p:
             paths.append(p)
 
     rows = _load_metric_rows(cfg, "real", "history_only")
     if rows:
-        path = out_cmp / "real_transfer_accuracy.png"
-        fig, ax = plt.subplots(figsize=(7, 4))
+        path = out_cmp / "real_transfer_correctness.png"
+        fig, ax = plt.subplots(figsize=(7.5, 4.8), constrained_layout=True)
         labels = [_pretty(r["model_id"]) for r in rows]
-        colors = [MODEL_COLORS.get(r["model_id"], "#888") for r in rows]
-        acc = [_acc(r) for r in rows]
-        ax.bar(labels, acc, color=colors)
-        ax.set_ylim(0, 1)
-        ax.set_ylabel("Accuracy vs correct side")
-        ax.set_title("Real transfer accuracy (history_only)")
-        fig.tight_layout()
-        fig.savefig(path, dpi=140)
+        colors = [MODEL_COLORS.get(r["model_id"], PASTEL["gray"]) for r in rows]
+        acc, err = [], []
+        for r in rows:
+            m, e = _acc_ci_from_rollout(cfg, "real", "history_only", r["model_id"])
+            if not np.isfinite(m):
+                m, e = _acc(r), 0.0
+            acc.append(m)
+            err.append(e if np.isfinite(e) else 0.0)
+        bars = ax.bar(labels, acc, color=colors, yerr=err, capsize=4, ecolor=PASTEL["ink"])
+        pad_ylim_for_labels(ax, acc, err, floor=CORRECTNESS_YLIM[0], headroom=0.07)
+        style_ylabel(ax, "Correctness vs correct stimulus side")
+        style_axes_title(ax, "Real transfer correctness (history_only; mean ± 95% CI)")
+        _label_above_bar(ax, bars, acc, err, pad=0.010)
+        save_figure(fig, path)
         plt.close(fig)
         paths.append(path)
+        # Keep old filename as copy for any external links
+        legacy = out_cmp / "real_transfer_accuracy.png"
+        shutil.copy(path, legacy)
+        paths.append(legacy)
     return paths
 
 
 def main() -> int:
+    apply_style()
     cfg = load_synthetic_config()
     fig_root = ROOT / cfg["paths"]["figures"]
     fig_root.mkdir(parents=True, exist_ok=True)
@@ -749,12 +1136,15 @@ def main() -> int:
                 "Synth = averages; real = per-session colors + best-session timeline."
             ),
             "scorecards/{domain}_{regime}_scorecard.png": (
-                "Model scorecards with precise reading text above panels; "
-                "neutral panel titles (Accuracy / History gap)."
+                "Correctness + history gap; bold titles; mean ± 95% CI."
             ),
             "scorecards/SCORECARD_GUIDE.md": "How to read scorecards.",
             "comparison/{domain}_{regime}_switch_board.png": (
-                "Side-by-side switch directions with one line per model."
+                "Side-by-side switch directions with mean ± SEM bands."
+            ),
+            "comparison/{domain}_{regime}_correctness_by_prior.png": (
+                "Correctness stratified by block prior P(right)=0.2/0.5/0.8 "
+                "plus balanced (equal-weight) correctness."
             ),
             "comparison/synth_vs_real_{regime}_board.png": (
                 "Synth held-out vs real transfer for the same regime."
@@ -814,10 +1204,11 @@ def main() -> int:
         "## Scorecards (separate folder)\n"
         "- Path: `scorecards/{domain}_{regime}_scorecard.png`\n"
         "- Full guide: `scorecards/SCORECARD_GUIDE.md`\n"
+        "- Real domain = shared behavior+neural cohort (same sessions as neural VE).\n"
         "- Start here for model ranking numbers.\n\n"
         "## Multipanels (`by_model/...`)\n"
         "- **Synth:** psychometric + switch = averages over held-out synthetic sessions.\n"
-        "- **Real:** one color per of the 10 core sessions; bottom-right = best session by accuracy.\n\n"
+        "- **Real:** one color per shared-cohort session; bottom-right = best session by accuracy.\n\n"
         "## Switch boards (`comparison/*_switch_board.png`)\n"
         "- Left: preference after 0.2→0.8 switches.\n"
         "- Right: preference after 0.8→0.2 switches.\n\n"

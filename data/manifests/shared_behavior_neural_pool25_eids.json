@@ -1,0 +1,67 @@
+{
+  "created_utc": "2026-07-23T21:31:19.835364+00:00",
+  "name": "shared_behavior_neural_pool_expanded_alias",
+  "description": "Almost-perfect behavior QC sessions with BWM spikes in any expanded ROI. Parent pool for the shared behavior+neural cohort.",
+  "regions": [
+    "MOs",
+    "vlOFC_orbvl",
+    "ACAd",
+    "MOp"
+  ],
+  "region_tiers": {
+    "MOs": "primary_cortex",
+    "vlOFC_orbvl": "primary_cortex",
+    "ACAd": "primary_cortex",
+    "MOp": "motor",
+    "CP": "striatum",
+    "VISp": "early_sensory",
+    "LGd": "early_sensory",
+    "SCm": "midbrain",
+    "GRN": "hindbrain",
+    "ORBm": "prefrontal_family",
+    "PL": "prefrontal_family",
+    "ILA": "prefrontal_family"
+  },
+  "n_sessions": 28,
+  "eids": [
+    "0f77ca5d-73c2-45bd-aa4c-4c5ed275dbde",
+    "113c5b6c-940e-4b21-b462-789b4c2be0e5",
+    "1191f865-b10a-45c8-9c48-24a980fd9402",
+    "196a2adf-ff83-49b2-823a-33f990049c2e",
+    "1d4a7bd6-296a-48b9-b20e-bd0ac80750a5",
+    "1e45d992-c356-40e1-9be1-a506d944896f",
+    "2c44a360-5a56-4971-8009-f469fb59de98",
+    "2e6e179c-fccc-4e8f-9448-ce5b6858a183",
+    "360eac0c-7d2d-4cc1-9dcf-79fc7afc56e7",
+    "36280321-555b-446d-9b7d-c2e17991e090",
+    "3f6e25ae-c007-4dc3-aa77-450fd5705046",
+    "4546cd60-fa2a-4d20-a9b6-d091e01d16f2",
+    "493170a6-fd94-4ee4-884f-cc018c17eeb9",
+    "4d8c7767-981c-4347-8e5e-5d5fffe38534",
+    "4ddb8a95-788b-48d0-8a0a-66c7c796da96",
+    "4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a",
+    "5455a21c-1be7-4cae-ae8e-8853a8d5f55e",
+    "5569f363-0934-464e-9a5b-77c8e67791a1",
+    "5ec72172-3901-4771-8777-6e9490ca51fc",
+    "65f5c9b4-4440-48b9-b914-c593a5184a18",
+    "695a6073-eae0-49e0-bb0f-e9e57a9275b9",
+    "6f6d2c8e-28be-49f4-ae4d-06be2d3148c1",
+    "752456f3-9f47-4fbf-bd44-9d131c0f41aa",
+    "78b4fff5-c5ec-44d9-b5f9-d59493063f00",
+    "81a78eac-9d36-4f90-a73a-7eb3ad7f770b",
+    "8207abc6-6b23-4762-92b4-82e05bed5143",
+    "a405053a-eb13-4aa4-850c-5a337e5dc7fd",
+    "aa3432cd-62bd-40bc-bc1c-a12d53bcbdcf"
+  ],
+  "n_bwm_by_region": {
+    "MOs": 57,
+    "vlOFC_orbvl": 10,
+    "ACAd": 23,
+    "MOp": 34
+  },
+  "papers": {
+    "prior_findling_2025": "https://www.nature.com/articles/s41586-025-09226-1",
+    "bwm_ibl_2025": "https://www.nature.com/articles/s41586-025-09235-0",
+    "behavior_ibl_2021": "https://elifesciences.org/articles/63711"
+  }
+}

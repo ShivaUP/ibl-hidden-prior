@@ -1,57 +1,49 @@
 {
-  "created_utc": "2026-07-22T01:18:11.978360+00:00",
-  "n_sessions": 10,
+  "created_utc": "2026-07-23T21:32:12.543825+00:00",
+  "manifest": "data/manifests/shared_behavior_neural_eids.json",
+  "cohort": "shared_behavior_neural",
+  "n_sessions": 8,
   "phase_n_steps": 9,
   "sessions": [
     {
-      "eid": "30ca9591-14d3-493c-8b9c-ae13ae8246d9",
-      "n_trials": 1171,
-      "path": "data/processed/real_v2_ticks/30ca9591-14d3-493c-8b9c-ae13ae8246d9.npz"
+      "eid": "2c44a360-5a56-4971-8009-f469fb59de98",
+      "n_trials": 588,
+      "path": "data/processed/real_v2_ticks/2c44a360-5a56-4971-8009-f469fb59de98.npz"
     },
     {
-      "eid": "257ec2b8-6e8d-4b98-99de-a232b58fde2c",
-      "n_trials": 675,
-      "path": "data/processed/real_v2_ticks/257ec2b8-6e8d-4b98-99de-a232b58fde2c.npz"
+      "eid": "4d8c7767-981c-4347-8e5e-5d5fffe38534",
+      "n_trials": 750,
+      "path": "data/processed/real_v2_ticks/4d8c7767-981c-4347-8e5e-5d5fffe38534.npz"
     },
     {
-      "eid": "0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b",
-      "n_trials": 935,
-      "path": "data/processed/real_v2_ticks/0c54f6b0-b3b0-4546-a6a0-d86245ad0b2b.npz"
+      "eid": "8207abc6-6b23-4762-92b4-82e05bed5143",
+      "n_trials": 727,
+      "path": "data/processed/real_v2_ticks/8207abc6-6b23-4762-92b4-82e05bed5143.npz"
     },
     {
-      "eid": "76edf716-f3c5-4823-95f3-9d37ed9cbeae",
-      "n_trials": 1378,
-      "path": "data/processed/real_v2_ticks/76edf716-f3c5-4823-95f3-9d37ed9cbeae.npz"
+      "eid": "5455a21c-1be7-4cae-ae8e-8853a8d5f55e",
+      "n_trials": 620,
+      "path": "data/processed/real_v2_ticks/5455a21c-1be7-4cae-ae8e-8853a8d5f55e.npz"
     },
     {
-      "eid": "da665ec4-445d-4d7e-a0dd-b3b156213754",
-      "n_trials": 933,
-      "path": "data/processed/real_v2_ticks/da665ec4-445d-4d7e-a0dd-b3b156213754.npz"
+      "eid": "2e6e179c-fccc-4e8f-9448-ce5b6858a183",
+      "n_trials": 528,
+      "path": "data/processed/real_v2_ticks/2e6e179c-fccc-4e8f-9448-ce5b6858a183.npz"
     },
     {
-      "eid": "a15c8461-1899-4477-9f2b-d60ea52d7cba",
-      "n_trials": 926,
-      "path": "data/processed/real_v2_ticks/a15c8461-1899-4477-9f2b-d60ea52d7cba.npz"
+      "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+      "n_trials": 944,
+      "path": "data/processed/real_v2_ticks/1191f865-b10a-45c8-9c48-24a980fd9402.npz"
     },
     {
-      "eid": "edf88809-e5e3-4274-a74e-72d2975ea292",
-      "n_trials": 997,
-      "path": "data/processed/real_v2_ticks/edf88809-e5e3-4274-a74e-72d2975ea292.npz"
+      "eid": "113c5b6c-940e-4b21-b462-789b4c2be0e5",
+      "n_trials": 423,
+      "path": "data/processed/real_v2_ticks/113c5b6c-940e-4b21-b462-789b4c2be0e5.npz"
     },
     {
-      "eid": "b052b9d7-3bfa-4d23-b195-99cfbd3f467c",
-      "n_trials": 822,
-      "path": "data/processed/real_v2_ticks/b052b9d7-3bfa-4d23-b195-99cfbd3f467c.npz"
-    },
-    {
-      "eid": "81f90b18-e61c-4d32-bbce-3e0c5f33f06c",
-      "n_trials": 890,
-      "path": "data/processed/real_v2_ticks/81f90b18-e61c-4d32-bbce-3e0c5f33f06c.npz"
-    },
-    {
-      "eid": "ba892860-149e-4bff-9961-aa6583d96661",
-      "n_trials": 883,
-      "path": "data/processed/real_v2_ticks/ba892860-149e-4bff-9961-aa6583d96661.npz"
+      "eid": "4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a",
+      "n_trials": 513,
+      "path": "data/processed/real_v2_ticks/4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a.npz"
     }
   ],
   "rebuild": [

@@ -3,11 +3,12 @@
 ## Scorecards (separate folder)
 - Path: `scorecards/{domain}_{regime}_scorecard.png`
 - Full guide: `scorecards/SCORECARD_GUIDE.md`
+- Real domain = shared behavior+neural cohort (same sessions as neural VE).
 - Start here for model ranking numbers.
 
 ## Multipanels (`by_model/...`)
 - **Synth:** psychometric + switch = averages over held-out synthetic sessions.
-- **Real:** one color per of the 10 core sessions; bottom-right = best session by accuracy.
+- **Real:** one color per shared-cohort session; bottom-right = best session by accuracy.
 
 ## Switch boards (`comparison/*_switch_board.png`)
 - Left: preference after 0.2→0.8 switches.

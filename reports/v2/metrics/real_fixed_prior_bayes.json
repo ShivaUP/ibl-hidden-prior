@@ -1,14 +1,14 @@
 {
-  "accuracy": 0.6964490263459335,
-  "acc_vs_correct_side": 0.6964490263459335,
-  "cross_entropy": 0.44649684367539955,
-  "ce_vs_correct_side": 0.44649684367539955,
+  "accuracy": 0.748587570621469,
+  "acc_vs_correct_side": 0.748587570621469,
+  "cross_entropy": 0.40552331280091786,
+  "ce_vs_correct_side": 0.40552331280091786,
   "domain": "real",
   "regime": "fixed_prior",
   "model_id": "bayes",
   "stage": "real_regime",
-  "n_sessions": 10,
-  "n_trials_pooled": 873,
+  "n_sessions": 8,
+  "n_trials_pooled": 708,
   "kyan_diagnostics": {
     "note": "switch/history-gap N/A on fixed_prior"
   }

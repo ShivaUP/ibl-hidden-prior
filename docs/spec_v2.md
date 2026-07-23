@@ -16,7 +16,7 @@ Train models **only on synthetic IBL-like sessions**, compare them on **held-out
 |---|---|
 | **Primary** | Fair ranking on synthetic held-out: choice CE/accuracy, psychometric-by-block, zero-evidence / pre-stim prior probes, switch-centered adaptation |
 | **Secondary** | Real-behavior transfer (no fine-tune): score vs **correct side only**; psychometrics + switches |
-| **Secondary** | Neural VE (MOs, vlOFC) + behavior-matched confirmatory survival on synth-trained model belief |
+| **Secondary** | Neural VE across belief-updating ROIs (see § Neural regions) + behavior-matched confirmatory survival on synth-trained model belief |
 
 ---
 
@@ -187,10 +187,22 @@ README (v2 section) must include:
 | V2-R3 | Real mapper: stim/go in same 100 ms bin — phase painting rules must be explicit |
 | V2-R4 | Teacher-forced vs mouse feedback distribution shift on transfer |
 | V2-R5 | Script renumber vs old docs/links — v1 scripts deleted; update handoffs that still cite them |
+| V2-R6 | Expanded ROI union cannot live in one session; per-region n_sessions varies; early sensory (VISp/LGd/SCm) may be sparse under almost-perfect QC |
 
 ---
 
-## 9. Grill lock summary
+## 9. Neural regions (belief updating)
+
+Full rationale + paper links: [`docs/NEURAL_REGIONS.md`](NEURAL_REGIONS.md).
+
+**In scope (primary):** MOs, ORBvl (vlOFC), ACAd, MOp  
+(from Findling et al. Nature 2025 prior map). Optional ROIs deferred: CP, VISp, LGd, SCm, GRN, ORBm, PL, ILA.
+
+**Cohort:** shared behavior+neural sessions maximize **union** ROI coverage (greedy set-cover); per-region VE uses sessions that contain that region.
+
+---
+
+## 10. Grill lock summary
 
 - Objective: **A** (synth primary, real transfer secondary)  
 - Models: tanh BPTT, tanh PC-CA, GRU, **Bayes only** (no Bayes+CA)  

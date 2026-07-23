@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/>
+<title>IBL latent prior updating — v2 status article</title>
+<style>
+@page { margin: 1in; }
+body {
+  font-family: "Times New Roman", Times, Georgia, serif;
+  font-size: 12pt;
+  line-height: 1.45;
+  color: #111;
+  max-width: 7.5in;
+  margin: 0 auto;
+  padding: 1in;
+  text-align: left;
+}
+h1 { font-size: 16pt; margin: 22pt 0 10pt; page-break-after: avoid; }
+h2 { font-size: 13pt; margin: 16pt 0 8pt; page-break-after: avoid; }
+p { margin: 0 0 10pt; text-align: justify; }
+ul { margin: 0 0 10pt 18pt; padding: 0; }
+li { margin: 0 0 4pt; }
+.note {
+  background: #f5f5f5;
+  border-left: 3pt solid #666;
+  padding: 8pt 10pt;
+  margin: 0 0 14pt;
+  font-size: 10.5pt;
+}
+.figure {
+  border: 1pt solid #ccc;
+  background: #fafafa;
+  padding: 10pt 12pt;
+  margin: 12pt 0;
+  page-break-inside: avoid;
+}
+.figure .label { font-weight: bold; margin-bottom: 4pt; }
+.figure .path { font-family: Menlo, Consolas, monospace; font-size: 10pt; word-break: break-all; }
+.table-title { font-weight: bold; margin: 12pt 0 4pt; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 14pt;
+  font-size: 10.5pt;
+  page-break-inside: avoid;
+}
+th, td {
+  border: 1pt solid #444;
+  padding: 5pt 7pt;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: #eee; font-weight: bold; }
+</style></head><body>
+<h1>Latent prior updating in the IBL decision task: synthetic training, frozen transfer to real behavior, and neural alignment</h1>
+<div class="note">Status manuscript draft (v2 implementation — not a submitted paper). Date: 2026-07-22. Code freeze: docs/spec_v2.md. Cohort freeze: data/manifests/shared_behavior_neural_eids.json (n=10). Metrics: reports/v2/metrics/. Figures: reports/v2/figures/.</div>
+<p>How to use this file in Google Docs: Upload this .docx or .html to Google Drive and open with Google Docs (File → Open, or right-click → Open with → Google Docs). After each figure callout, Insert → Image and choose the PNG at the listed repository path (relative to the project root).</p>
+<h1>Title (working)</h1>
+<p>Comparing standard RNNs, predictive-coding credit assignment, and explicit Bayesian prior updating for hidden-block inference in the International Brain Laboratory visual decision task</p>
+<h1>Abstract (status summary)</h1>
+<p>Mice performing the International Brain Laboratory (IBL) contrast-discrimination task experience hidden blocks in which the prior probability of the rewarded stimulus side is biased (P(right) in {0.2, 0.5, 0.8}). Behavior indicates that animals update a latent block prior trial by trial. Here we ask which computational account best explains that updating when models are trained only on synthetic IBL-like sessions and then frozen for transfer to real sessions.</p>
+<p>We implement four models sharing a common within-trial tick and channel schema: (i) a tanh RNN trained with backpropagation through time (tanh_bptt); (ii) an architecturally identical tanh RNN trained with local predictive-coding credit assignment (tanh_pc); (iii) a gated recurrent unit (GRU); and (iv) an explicit leaky Bayesian prior with a stimulus readout (bayes). Primary ranking uses held-out synthetic data under a history-only regime. Secondary evaluation transfers frozen weights to a shared real cohort of n=10 almost-perfect behavior sessions that also have Neuropixels coverage in MOs and/or ORBvl (vlOFC). Scoring is always against the correct stimulus side (not mouse choice). A neural variance-explained ladder compares model belief to region-level prior readouts.</p>
+<p>On history-only ranking, the GRU currently leads both synthetic held-out accuracy and real transfer accuracy, with a large history gap (differential zero-evidence preference between 0.8 and 0.2 blocks). The predictive-coding tanh is weaker when it must infer the prior from history alone, but leads under an oracle full-information regime—consistent with limited learned history use rather than a general inability to use prior information. On the shared n=10 neural cohort, session-mean ve_linear_recal also ranks GRU first in both MOs and vlOFC; a matched GRU vs tanh_bptt advantage survives Holm correction in MOs but not in vlOFC.</p>
+<h1>1. Introduction / scientific question</h1>
+<h2>1.1 Biological setting</h2>
+<p>The IBL decision task requires a left/right choice based on a visual grating of variable contrast. Across blocks, the experimenter-imposed prior over the rewarded side switches among 0.2, 0.5, and 0.8 without an explicit cue. Mice show psychometric shifts and switch-centered adaptation consistent with updating a latent prior.</p>
+<h2>1.2 Computational question</h2>
+<p>Which model class best explains trial-by-trial updating of that hidden prior?</p>
+<ul><li>Class A — Standard task-trained RNN (tanh_bptt; also GRU as a gated variant)</li><li>Class B — Predictive-coding / local credit-assignment training of the same tanh architecture (tanh_pc)</li><li>Class C — Explicit online inference (bayes: leaky subjective prior q_t)</li></ul>
+<p>Note: a dedicated meta-RL RNN is parked in the v2 freeze and is not trained in the current artifact set. The implemented comparison therefore uses four model IDs spanning the three scientific classes above (standard RNN = tanh_bptt + GRU; PC = tanh_pc; explicit inference = bayes).</p>
+<h2>1.3 Evaluation philosophy (locked)</h2>
+<ul><li>Train ONLY on synthetic IBL-like sessions (empirical generator statistics).</li><li>Rank primarily on held-out synthetic data (same generator, unseen sessions).</li><li>Transfer FROZEN weights to real mouse sessions (no mouse fine-tuning).</li><li>Separate behavioral evaluation from neural alignment.</li><li>Prefer behavior-matched neural comparisons when claiming neural advantage.</li></ul>
+<h1>2. Methods</h1>
+<h2>2.1 Data sources and session selection</h2>
+<p>Source of truth for real behavior and ephys: International Brain Laboratory releases accessed via ONE/openalyx (brain-wide map / associated behavior).</p>
+<p>Legacy behavior-only core (NOT used for v2 real+neural claims): data/manifests/behavior_core_eids.json (n=10). Role: historical almost-perfect behavior pin; used to fit synthetic generator statistics. These sessions have no Neuropixels insertions suitable for the MOs/ORBvl VE analysis.</p>
+<p>Parent neural∩behavior pool: data/manifests/shared_behavior_neural_pool25_eids.json (n=25). Definition: sessions that simultaneously (a) pass almost-perfect behavior QC and (b) have BWM spikes in MOs and/or ORBvl.</p>
+<p>Active shared cohort (behavior transfer AND neural VE): data/manifests/shared_behavior_neural_eids.json (n=10). Selection rule: dual_region_first_then_behavior_qc. (1) Include ALL dual-region sessions (MOs AND ORBvl): 5 sessions. (2) Fill remaining 5 from single-region sessions ranked by fraction_after_rt_trim (desc), fraction_pass_rules_1_to_4 (desc), n_choice_trials (desc).</p>
+<div class="table-title">Table 1. Shared behavior+neural cohort (n=10)</div>
+<table><tr><th>Tier</th><th>eid</th><th>MOs</th><th>ORBvl</th></tr><tr><td>dual_region</td><td>4d8c7767-981c-4347-8e5e-5d5fffe38534</td><td>yes</td><td>yes</td></tr><tr><td>dual_region</td><td>8207abc6-6b23-4762-92b4-82e05bed5143</td><td>yes</td><td>yes</td></tr><tr><td>dual_region</td><td>2e6e179c-fccc-4e8f-9448-ce5b6858a183</td><td>yes</td><td>yes</td></tr><tr><td>dual_region</td><td>1191f865-b10a-45c8-9c48-24a980fd9402</td><td>yes</td><td>yes</td></tr><tr><td>dual_region</td><td>4ecb5d24-f5cc-402c-be28-9d0f7cb14b3a</td><td>yes</td><td>yes</td></tr><tr><td>single_region_filler</td><td>3f6e25ae-c007-4dc3-aa77-450fd5705046</td><td>no</td><td>yes</td></tr><tr><td>single_region_filler</td><td>360eac0c-7d2d-4cc1-9dcf-79fc7afc56e7</td><td>yes</td><td>no</td></tr><tr><td>single_region_filler</td><td>2c44a360-5a56-4971-8009-f469fb59de98</td><td>yes</td><td>no</td></tr><tr><td>single_region_filler</td><td>493170a6-fd94-4ee4-884f-cc018c17eeb9</td><td>yes</td><td>no</td></tr><tr><td>single_region_filler</td><td>5ec72172-3901-4771-8777-6e9490ca51fc</td><td>yes</td><td>no</td></tr></table>
+<p>Processed real trials for this cohort: 6,613 trials across 10 sessions (data/processed/trials/; ticks in data/manifests/real_v2_ticks.json).</p>
+<h2>2.2 Behavioral quality control (almost-perfect gates)</h2>
+<p>Implemented in src/data/qc.py / session QC reports (reports/neural/neural_roi_qc_scores.json for the neural-capable pool).</p>
+<p>Trial-level rules (1–4): finite stimOn, goCue, response, feedback times; monotonic ordering stim ≤ go ≤ response ≤ feedback; reaction time RT = response − goCue (stimOn fallback) &gt; 0; choice in {−1, +1}.</p>
+<p>RT trim: keep trials within the [1, 99] percentile of RT within session.</p>
+<p>Session-level gates (all required): ≥ 400 choice trials; probabilityLeft values ⊆ {0.2, 0.5, 0.8}; presence of left-bias, right-bias, AND unbiased blocks; ≥ 95% of choice trials pass rules 1–4; ≥ 90% remain after RT percentile trim.</p>
+<p>All 25 parent-pool sessions and all 10 selected sessions satisfy passes_session == True under these gates.</p>
+<h2>2.3 Trial encoding: shared tick / channel schema</h2>
+<p>Documentation: docs/TICK_AND_CHANNELS.md , configs/synthetic_v2.yaml.</p>
+<p>Timebase: discrete ticks of 100 ms. Current schedule uses 9 ticks per trial with causal order baseline → stimulus → go → response → feedback. Choice loss / readout only on the response-phase tick(s).</p>
+<p>Input channels (7-dimensional observation vector): visual_right, visual_left, go_cue, action_left, action_right, rewarded, not_rewarded. Visual coding is side × magnitude (not binary high/low). Contrast levels follow IBL empirical support {0, 0.0625, 0.125, 0.25, 0.5, 1.0}.</p>
+<p>Synthetic sensory noise: σ = 0.15 on visual channels during synth training/eval. Real transfer: sensory noise OFF.</p>
+<h2>2.4 Synthetic task generator</h2>
+<p>Generator statistics are fit from empirical behavior (behavior-core legacy pin) so that synthetic sessions match real block-length, transition, contrast, and trial-count distributions without replaying specific real eid sequences. Block priors ∈ {0.2, 0.5, 0.8}. Sessions are long (~900 trials for BPTT/GRU/Bayes training schedules). This design keeps real transfer meaningful: models never see the evaluation mice during training.</p>
+<h2>2.5 Training and scoring targets</h2>
+<p>Choice target (train and eval): CORRECT STIMULUS SIDE only — not mouse choice and not mouse P(right). On real rollouts, the mouse&#x27;s action and reward appear as history INPUTS on feedback ticks, but do not define the supervised label.</p>
+<p>Training feedback (synth): teacher-forced action / outcome with training_feedback_error_rate = 0.2. Synth held-out eval: closed-loop (model&#x27;s own action feeds subsequent history). Real transfer: frozen weights; no fine-tuning on mice.</p>
+<h2>2.6 Evaluation regimes</h2>
+<p>Three regimes share the same models and schema (src/models_v2/rollout.py):</p>
+<ul><li>history_only (PRIMARY) — Model must infer the block prior from history / feedback alone. This is the scientifically central condition for latent prior updating.</li><li>full_information (CONTROL / UPPER REFERENCE) — At evaluation time, an oracle log-odds bias from the true block prior is injected (fi_oracle_logit_gain = 2.5). Tests whether a model can USE prior information when it is provided.</li><li>fixed_prior (CONTROL) — Restrict to trials/blocks with P(right) ≈ 0.5 (no 0.2/0.8 switches). History gap is undefined.</li></ul>
+<h2>2.7 Model definitions</h2>
+<p>Shared implementation notes: NumPy reference implementations under src/models_v2/; RNN hidden size = 48; choice head = 2-way logits at response tick with cross-entropy vs correct side; checkpoints at artifacts/v2/models/{model_id}/.</p>
+<div class="table-title">Table 2. Model set</div>
+<table><tr><th>Model ID</th><th>Class</th><th>Test-time architecture</th><th>Training</th><th>Notes</th></tr><tr><td>tanh_bptt</td><td>Standard RNN</td><td>tanh RNN + linear readout</td><td>BPTT (60×24×929 trials)</td><td>Zero-evidence P(right) probe</td></tr><tr><td>tanh_pc</td><td>Predictive coding (CA)</td><td>Identical tanh RNN</td><td>Local PC inference + synaptic updates; 240-trial sessions</td><td>Architecture matched to tanh_bptt; training differs</td></tr><tr><td>gru</td><td>Standard RNN (gated)</td><td>GRU + linear readout</td><td>BPTT (same long schedule as tanh_bptt)</td><td>Zero-evidence P(right) probe</td></tr><tr><td>bayes</td><td>Explicit inference</td><td>Leaky prior q_t + stim readout</td><td>BPTT-through-params (likelihood)</td><td>Explicit state; smaller capacity than hidden-48</td></tr></table>
+<p>Fairness caveats (documented, not hidden): tanh_bptt vs tanh_pc share an identical forward pass with an intentional training difference; Bayes has a much smaller explicit state than hidden-48 RNNs; tanh_pc was trained on shorter sessions than BPTT models.</p>
+<h2>2.8 Behavioral metrics</h2>
+<ul><li>Accuracy: argmax choice == correct stimulus side.</li><li>Cross-entropy (CE) / choice NLL vs correct side.</li><li>History gap: counterfactual zero-evidence probe (contrast = 0); history_gap = mean P(right | true 0.8 block) − mean P(right | true 0.2 block). Near 0 ⇒ little differential prior use; large positive ⇒ strong block-tuned bias.</li><li>Settled-block calibration: trials ≥ 15 after last switch; compare zero-evidence preference to true prior.</li><li>Switch-centered analysis: window −20 … +30 trials relative to a block prior change; directions 0.2→0.8 and 0.8→0.2.</li><li>Psychometric-by-block: choice probability vs contrast, stratified by true block prior.</li></ul>
+<p>Synth regime evaluation size: typically 32 held-out synthetic sessions × 929 trials (history/full); fixed_prior filters to P≈0.5. Real regime (shared cohort): n_sessions = 10; n_trials_pooled = 6613 (history_only / full_information); fixed_prior = 887 trials.</p>
+<h2>2.9 Subjective / model prior probes</h2>
+<p>For all models, the operational belief used in figures and neural alignment is the counterfactual zero-evidence choice probability (or explicit q_t for Bayes), obtained by holding sensory contrast at 0 while keeping recurrent / prior state from the real history. This isolates latent prior influence from sensory evidence.</p>
+<h2>2.10 Neural analysis methods</h2>
+<p>Regions in scope: MOs and vlOFC (ORBvl). Spike features: peri-stimulus spike counts in window NeuralWindow(t_start=−0.1 s, t_end=0.3 s) aligned to stimOn_times.</p>
+<p>Neural prior readout n_t: (1) estimate mouse subjective prior axis from behavior (mouse_prior_hat); (2) cross-validated Ridge regression spikes → mouse_prior_hat; (3) predicted values = neural prior readout n_t.</p>
+<p>Model belief q_t: synth-trained model, frozen, history_only, on the same trials, using the zero-evidence / explicit prior probe.</p>
+<p>Primary alignment metric: ve_linear_recal = variance explained of n_t by a linearly recalibrated q_t, then mean across sessions.</p>
+<p>Behavior matching before neural ranking: ε-ball on real history_only choice CE (ε = 0.05). On the n=10 cohort all four models match. Survival test: session bootstrap of matched best-vs-second VE advantage with Holm correction across regions (α = 0.05). Scripts: 13_eval_neural_pilot.py → 14_eval_neural_matched.py → 15_make_neural_figures.py.</p>
+<h1>3. Results</h1>
+<h2>3.1 Synthetic held-out ranking (primary)</h2>
+<p>Source: reports/v2/metrics/synth_heldout_{model}.json</p>
+<div class="table-title">Table 3. Synthetic held-out ranking</div>
+<table><tr><th>Model</th><th>Accuracy</th><th>Cross-entropy</th></tr><tr><td>gru</td><td>0.8122</td><td>0.3976</td></tr><tr><td>tanh_bptt</td><td>0.8071</td><td>0.4027</td></tr><tr><td>bayes</td><td>0.7765</td><td>0.4562</td></tr><tr><td>tanh_pc</td><td>0.7115</td><td>0.5307</td></tr></table>
+<p>Interpretation: On the primary synthetic ranking, the gated RNN (GRU) is best, narrowly ahead of the tanh BPTT RNN. The explicit Bayes model is competitive but behind the best RNNs. The PC-trained tanh lags substantially—already suggesting that local credit assignment, under the current training schedule, does not match BPTT for learning the IBL history-dependent policy.</p>
+<div class="figure"><div class="label">FIGURE — Primary synth ranking (history-only scorecard)</div><div class="path">Insert image from: reports/v2/figures/scorecards/synth_history_only_scorecard.png</div></div>
+<div class="figure"><div class="label">FIGURE — Synth history-only switch board (0.2↔0.8 adaptation)</div><div class="path">Insert image from: reports/v2/figures/comparison/synth_history_only_switch_board.png</div></div>
+<h2>3.2 Synthetic regimes</h2>
+<p>Source: reports/v2/metrics/synth_{regime}_{model}.json (n_sessions=32; history/full use 929 trials/session).</p>
+<div class="table-title">Table 4. Synth history_only</div>
+<table><tr><th>Model</th><th>Accuracy</th><th>CE</th><th>History gap</th></tr><tr><td>gru</td><td>0.8073</td><td>0.4000</td><td>0.4086</td></tr><tr><td>tanh_bptt</td><td>0.8076</td><td>0.4023</td><td>0.4043</td></tr><tr><td>bayes</td><td>0.7725</td><td>0.4498</td><td>0.2162</td></tr><tr><td>tanh_pc</td><td>0.7394</td><td>0.5191</td><td>0.1334</td></tr></table>
+<div class="table-title">Table 5. Synth full_information (oracle prior; history gap near ceiling)</div>
+<table><tr><th>Model</th><th>Accuracy</th></tr><tr><td>tanh_pc</td><td>0.8262</td></tr><tr><td>gru</td><td>0.8115</td></tr><tr><td>tanh_bptt</td><td>0.7963</td></tr><tr><td>bayes</td><td>0.7956</td></tr></table>
+<div class="table-title">Table 6. Synth fixed_prior (P≈0.5; history gap undefined)</div>
+<table><tr><th>Model</th><th>Accuracy</th></tr><tr><td>bayes</td><td>0.7688</td></tr><tr><td>tanh_pc</td><td>0.7562</td></tr><tr><td>gru</td><td>0.7344</td></tr><tr><td>tanh_bptt</td><td>0.7250</td></tr></table>
+<p>Interpretation: Under history_only, GRU and tanh_bptt show large, nearly matched history gaps (~0.40), indicating strong differential zero-evidence preferences across biased blocks. Bayes shows a moderate gap (~0.22). tanh_pc&#x27;s gap is small (~0.13), consistent with weak learned prior tracking. Critically, when the true prior is provided (full_information), tanh_pc becomes the most accurate model. This dissociation argues against a blanket claim that PC cannot use priors; rather, under current training it fails to infer the prior from history as effectively as BPTT/GRU.</p>
+<div class="figure"><div class="label">FIGURE — Synth full-information scorecard</div><div class="path">Insert image from: reports/v2/figures/scorecards/synth_full_information_scorecard.png</div></div>
+<div class="figure"><div class="label">FIGURE — Synth fixed-prior scorecard</div><div class="path">Insert image from: reports/v2/figures/scorecards/synth_fixed_prior_scorecard.png</div></div>
+<div class="figure"><div class="label">FIGURE — Synth full-information switch board</div><div class="path">Insert image from: reports/v2/figures/comparison/synth_full_information_switch_board.png</div></div>
+<h2>3.3 Real transfer on the shared n=10 cohort</h2>
+<p>Source: reports/v2/metrics/real_history_only_{model}.json (identical accuracy in real_transfer_{model}.json). Scoring: correct_side_only; n_sessions=10; n_trials_pooled=6613.</p>
+<div class="table-title">Table 7. Real history_only (scientifically central)</div>
+<table><tr><th>Model</th><th>Accuracy</th><th>CE</th><th>History gap</th></tr><tr><td>gru</td><td>0.8373</td><td>0.3249</td><td>0.4128</td></tr><tr><td>tanh_bptt</td><td>0.8188</td><td>0.3366</td><td>0.4074</td></tr><tr><td>bayes</td><td>0.8084</td><td>0.3481</td><td>0.2201</td></tr><tr><td>tanh_pc</td><td>0.7874</td><td>0.3691</td><td>0.1270</td></tr></table>
+<div class="table-title">Table 8. Real full_information</div>
+<table><tr><th>Model</th><th>Accuracy</th></tr><tr><td>tanh_pc</td><td>0.8370</td></tr><tr><td>gru</td><td>0.8114</td></tr><tr><td>bayes</td><td>0.7949</td></tr><tr><td>tanh_bptt</td><td>0.7933</td></tr></table>
+<div class="table-title">Table 9. Real fixed_prior (887 trials)</div>
+<table><tr><th>Model</th><th>Accuracy</th></tr><tr><td>gru</td><td>0.7632</td></tr><tr><td>tanh_pc</td><td>0.7621</td></tr><tr><td>bayes</td><td>0.7475</td></tr><tr><td>tanh_bptt</td><td>0.7215</td></tr></table>
+<p>Interpretation: Frozen synth-trained models transfer to real IBL behavior with the same ranking structure as synth history_only: GRU &gt; tanh_bptt &gt; bayes &gt; tanh_pc on accuracy, and GRU/tanh_bptt &gt;&gt; bayes &gt; tanh_pc on history gap. Transfer is therefore not a qualitative rearrangement of model order under the primary regime. The full_information dissociation again appears on real data: tanh_pc leads when the prior is given, while lagging when it must be inferred—strengthening the history-learning interpretation. Real multipanel figures use per-session colors plus a best-session timeline; synth multipanels show averages.</p>
+<div class="figure"><div class="label">FIGURE — Real history-only scorecard (start here for real ranking)</div><div class="path">Insert image from: reports/v2/figures/scorecards/real_history_only_scorecard.png</div></div>
+<div class="figure"><div class="label">FIGURE — Real transfer accuracy bars</div><div class="path">Insert image from: reports/v2/figures/comparison/real_transfer_accuracy.png</div></div>
+<div class="figure"><div class="label">FIGURE — Real history-only switch board</div><div class="path">Insert image from: reports/v2/figures/comparison/real_history_only_switch_board.png</div></div>
+<div class="figure"><div class="label">FIGURE — Real full-information scorecard</div><div class="path">Insert image from: reports/v2/figures/scorecards/real_full_information_scorecard.png</div></div>
+<div class="figure"><div class="label">FIGURE — Real fixed-prior scorecard</div><div class="path">Insert image from: reports/v2/figures/scorecards/real_fixed_prior_scorecard.png</div></div>
+<div class="figure"><div class="label">FIGURE — Real full-information switch board</div><div class="path">Insert image from: reports/v2/figures/comparison/real_full_information_switch_board.png</div></div>
+<h2>3.4 Synth vs real transfer boards</h2>
+<p>These boards ask whether synthetic ranking predicts real ranking for each regime.</p>
+<div class="figure"><div class="label">FIGURE — Synth vs real, history_only</div><div class="path">Insert image from: reports/v2/figures/comparison/synth_vs_real_history_only_board.png</div></div>
+<div class="figure"><div class="label">FIGURE — Synth vs real, full_information</div><div class="path">Insert image from: reports/v2/figures/comparison/synth_vs_real_full_information_board.png</div></div>
+<div class="figure"><div class="label">FIGURE — Synth vs real, fixed_prior</div><div class="path">Insert image from: reports/v2/figures/comparison/synth_vs_real_fixed_prior_board.png</div></div>
+<p>Interpretation: History-only transfer preserves the qualitative order (GRU/tanh_bptt strong; tanh_pc weak on gap). Full-information elevates tanh_pc on both domains. Fixed-prior compresses differences (no block switching required).</p>
+<h2>3.5 Per-model diagnostic multipanels</h2>
+<p>Each multipanel contains: training curve; psychometric-by-block; switch-centered zero-contrast belief (−20…+30); example/best session prior vs belief.</p>
+<div class="figure"><div class="label">FIGURE — GRU synth history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/gru/synth/history_only/multipanel_diagnostics.png</div></div>
+<div class="figure"><div class="label">FIGURE — GRU real history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/gru/real/history_only/multipanel_diagnostics.png</div></div>
+<div class="figure"><div class="label">FIGURE — tanh_bptt synth history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/tanh_bptt/synth/history_only/multipanel_diagnostics.png</div></div>
+<div class="figure"><div class="label">FIGURE — tanh_bptt real history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/tanh_bptt/real/history_only/multipanel_diagnostics.png</div></div>
+<div class="figure"><div class="label">FIGURE — bayes synth history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/bayes/synth/history_only/multipanel_diagnostics.png</div></div>
+<div class="figure"><div class="label">FIGURE — bayes real history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/bayes/real/history_only/multipanel_diagnostics.png</div></div>
+<div class="figure"><div class="label">FIGURE — tanh_pc synth history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/tanh_pc/synth/history_only/multipanel_diagnostics.png</div></div>
+<div class="figure"><div class="label">FIGURE — tanh_pc real history_only multipanel</div><div class="path">Insert image from: reports/v2/figures/by_model/tanh_pc/real/history_only/multipanel_diagnostics.png</div></div>
+<p>Additional regimes follow the same naming pattern: reports/v2/figures/by_model/{model}/{synth|real}/{full_information|fixed_prior}/multipanel_diagnostics.png</p>
+<h2>3.6 Neural alignment — shared n=10 cohort (completed)</h2>
+<p>Pipeline executed: scripts/13 → 14 → 15 on shared_behavior_neural (n=10). Artifacts: reports/v2/neural/ve_unmatched.csv, ve_matched.csv, phase9_summary.json, survival_tests.json; figures under reports/v2/figures/neural/ (regenerated 2026-07-22).</p>
+<p>Behavior matching (real history_only CE ε=0.05): best CE is gru (0.3249). All four models fall inside the ε-ball on this cohort (tanh_pc ΔCE ≈ 0.044 &lt; 0.05), so matched = {gru, tanh_bptt, bayes, tanh_pc}.</p>
+<div class="table-title">Table 10. Session-mean ve_linear_recal (rank: gru &gt; tanh_bptt &gt; bayes &gt; tanh_pc)</div>
+<table><tr><th>Region</th><th>gru</th><th>tanh_bptt</th><th>bayes</th><th>tanh_pc</th></tr><tr><td>MOs</td><td>0.2134</td><td>0.2057</td><td>0.1084</td><td>0.0409</td></tr><tr><td>vlOFC_orbvl</td><td>0.1694</td><td>0.1619</td><td>0.0886</td><td>0.0351</td></tr></table>
+<div class="table-title">Table 11. Survival (matched best vs second; session bootstrap + Holm)</div>
+<table><tr><th>Region</th><th>Comparison</th><th>ΔVE</th><th>p_holm</th><th>Survive α=0.05</th><th>n sessions</th></tr><tr><td>MOs</td><td>gru vs tanh_bptt</td><td>0.0077</td><td>0.002</td><td>YES</td><td>9</td></tr><tr><td>vlOFC_orbvl</td><td>gru vs tanh_bptt</td><td>0.0075</td><td>0.122</td><td>NO</td><td>6</td></tr></table>
+<p>Interpretation: Neural prior readouts are explained best by GRU belief, consistent with the behavioral history-only ranking. After behavior matching, a small GRU advantage over tanh_bptt survives multiple-comparison correction in MOs but does not survive in vlOFC on this cohort. Explicit Bayes and PC lag on VE in both regions. Session coverage is uneven across regions (more MOs than ORBvl), so vlOFC power is limited.</p>
+<div class="figure"><div class="label">FIGURE — Unmatched vs matched neural VE (n=10 cohort)</div><div class="path">Insert image from: reports/v2/figures/neural/neural_ve_unmatched_vs_matched.png</div></div>
+<div class="figure"><div class="label">FIGURE — Survival tests (n=10 cohort)</div><div class="path">Insert image from: reports/v2/figures/neural/survival_tests.png</div></div>
+<h1>4. Discussion (current interpretation)</h1>
+<h2>4.1 What is supported now</h2>
+<ul><li>A reproducible synth→real pipeline exists with a shared tick schema and correct-side-only scoring.</li><li>Under the primary history-only regime, a gated standard RNN (GRU) currently best explains both synthetic held-out behavior and frozen real transfer, with a large history gap indicating strong latent prior use.</li><li>An architecturally matched PC-trained tanh does not match BPTT/GRU on history inference, but can outperform when the prior is supplied—suggesting a specific deficit in learned history-based prior updating under the present PC training schedule, not a general inability to exploit priors.</li><li>Explicit Bayes updates in the expected direction but with a smaller history gap than the best RNNs, consistent with a lower-capacity / more constrained latent state.</li></ul>
+<h2>4.2 What is not yet safe to claim</h2>
+<ul><li>A large or region-general neural advantage of GRU over tanh_bptt (MOs survival is small ΔVE; vlOFC does not survive Holm on n=6).</li><li>That PC is intrinsically worse than BPTT for this task (training length / hyperparameters differ; intentional but not exhaustively ablated).</li><li>Mouse-choice prediction as a primary claim (current scoring is correct side).</li><li>Meta-RL comparisons (parked).</li></ul>
+<h2>4.3 Behavior-matched neural logic</h2>
+<p>Even if one model aligns better to neural prior readouts, that advantage is only scientifically decisive if models are matched on behavior. On the n=10 shared cohort, all four models pass the CE ε=0.05 ball, so the neural ranking (GRU &gt; tanh_bptt &gt; bayes &gt; tanh_pc) is not an artifact of excluding PC.</p>
+<h1>5. Limitations and open risks</h1>
+<ul><li>vlOFC coverage is only 6/10 sessions; survival underpowered relative to MOs.</li><li>GRU vs tanh_bptt neural ΔVE is small even where it survives (MOs).</li><li>tanh_pc trained with shorter sessions (240 vs 929 trials) for stability.</li><li>Bayes state capacity &lt;&lt; hidden-48 RNNs (fairness documented, not equalized).</li><li>Real feedback distribution shift: teacher-forced synth training vs mouse action/reward inputs at transfer.</li><li>RT modeling / RT heads are out of v2 primary scope (RT used for QC only).</li><li>Full-information CE values are not directly comparable to history_only CE because the oracle logit bias saturates probabilities; use accuracy + gap.</li><li>Meta-RL and Bayes+CA twins remain parked.</li></ul>
+<h1>6. Reproducibility / pipeline map</h1>
+<p>Canonical script order (scripts/README.md): 00 smoke ONE; 01 session QC → behavior_core (legacy); 02 event-delta audit → tick schedule; 03 build processed trials (default: shared_behavior_neural); 04 fit synthetic stats → configs/synthetic_v2.yaml; 05 build synthetic datasets; 06 map real trials → v2 ticks; 07 train models (--all); 11 eval regimes (synth + real × regimes); 10 make behavioral figures / scorecards; 12 neural intersect refresh; 13 neural VE; 14 behavior-matched VE + survival; 15 neural figures.</p>
+<p>Key documents: docs/spec_v2.md; docs/REAL_EVAL.md; docs/TICK_AND_CHANNELS.md; reports/v2/figures/COMPARISON_GUIDE.md; reports/v2/figures/scorecards/SCORECARD_GUIDE.md; scripts/README.md. Metrics directory: reports/v2/metrics/.</p>
+<h1>7. Figure insertion checklist</h1>
+<p>Insert each PNG at the callout above. Checklist:</p>
+<ul><li>reports/v2/figures/scorecards/synth_history_only_scorecard.png</li><li>reports/v2/figures/scorecards/synth_full_information_scorecard.png</li><li>reports/v2/figures/scorecards/synth_fixed_prior_scorecard.png</li><li>reports/v2/figures/scorecards/real_history_only_scorecard.png</li><li>reports/v2/figures/scorecards/real_full_information_scorecard.png</li><li>reports/v2/figures/scorecards/real_fixed_prior_scorecard.png</li><li>reports/v2/figures/comparison/synth_history_only_switch_board.png</li><li>reports/v2/figures/comparison/synth_full_information_switch_board.png</li><li>reports/v2/figures/comparison/real_history_only_switch_board.png</li><li>reports/v2/figures/comparison/real_full_information_switch_board.png</li><li>reports/v2/figures/comparison/synth_vs_real_history_only_board.png</li><li>reports/v2/figures/comparison/synth_vs_real_full_information_board.png</li><li>reports/v2/figures/comparison/synth_vs_real_fixed_prior_board.png</li><li>reports/v2/figures/comparison/real_transfer_accuracy.png</li><li>reports/v2/figures/by_model/gru/synth/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/by_model/gru/real/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/by_model/tanh_bptt/synth/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/by_model/tanh_bptt/real/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/by_model/bayes/synth/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/by_model/bayes/real/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/by_model/tanh_pc/synth/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/by_model/tanh_pc/real/history_only/multipanel_diagnostics.png</li><li>reports/v2/figures/neural/neural_ve_unmatched_vs_matched.png</li><li>reports/v2/figures/neural/survival_tests.png</li></ul>
+<h1>8. Collaborator summary</h1>
+<p>We have a frozen v2 pipeline that trains four models on synthetic IBL-like data and evaluates them on held-out synth and on a dual-region-first shared cohort of 10 almost-perfect real sessions with MOs/ORBvl ephys. Behaviorally, under history-only scoring against correct stimulus side, GRU currently leads on both synth and real, with strong history gaps; PC-trained tanh is weak on history inference but strong when given an oracle prior. Neural VE on the same n=10 cohort also ranks GRU first in MOs and vlOFC; a matched GRU&gt;tanh_bptt advantage survives Holm correction in MOs but not vlOFC. Behavioral and neural figures are on disk under reports/v2/figures/.</p>
+</body></html>

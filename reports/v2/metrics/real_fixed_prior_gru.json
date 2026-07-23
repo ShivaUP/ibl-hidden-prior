@@ -1,14 +1,14 @@
 {
-  "accuracy": 0.7285223367697594,
-  "acc_vs_correct_side": 0.7285223367697594,
-  "cross_entropy": 0.46448984792785003,
-  "ce_vs_correct_side": 0.46448984792785003,
+  "accuracy": 0.7598870056497176,
+  "acc_vs_correct_side": 0.7598870056497176,
+  "cross_entropy": 0.4292676631776713,
+  "ce_vs_correct_side": 0.4292676631776713,
   "domain": "real",
   "regime": "fixed_prior",
   "model_id": "gru",
   "stage": "real_regime",
-  "n_sessions": 10,
-  "n_trials_pooled": 873,
+  "n_sessions": 8,
+  "n_trials_pooled": 708,
   "kyan_diagnostics": {
     "note": "switch/history-gap N/A on fixed_prior"
   }
