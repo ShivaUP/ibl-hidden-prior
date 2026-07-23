@@ -1,4 +1,11 @@
-"""Region acronym helpers for v1 neural analyses (MOs, vlOFC/ORBvl)."""
+"""Region acronym helpers for neural analyses.
+
+v1 regions: MOs, vlOFC/ORBvl.
+Paper-highlighted choice-selective regions (IBL et al. 2025, Nature):
+  Thalamus: CL, SPF
+  Midbrain:  SCm, MRN, SNr, RPF, NPC
+  Hindbrain / pons / medulla / cerebellar nuclei: GRN, IRN, SOC, VII, TRN, FOTU
+"""
 
 from __future__ import annotations
 
@@ -12,6 +19,38 @@ REGION_ALIASES: dict[str, tuple[str, ...]] = {
 # Optional control
 REGION_ALIASES_OPTIONAL: dict[str, tuple[str, ...]] = {
     "VISp": ("VISp",),
+}
+
+# ---- Paper-highlighted choice-selective regions (IBL 2025 Nature Fig 5) ----
+# Keys are display names; values are Allen CCF acronym prefixes to match.
+CHOICE_REGIONS: dict[str, tuple[str, ...]] = {
+    # Thalamus
+    "CL":   ("CL",),
+    "SPF":  ("SPF",),
+    # Midbrain
+    "SCm":  ("SCm",),
+    "MRN":  ("MRN",),
+    "SNr":  ("SNr",),
+    "RPF":  ("RPF",),
+    "NPC":  ("NPC",),
+    # Hindbrain / pons / medulla / cerebellar nuclei
+    "GRN":  ("GRN",),
+    "IRN":  ("IRN",),
+    "SOC":  ("SOC",),
+    "VII":  ("VII",),
+    "TRN":  ("TRN",),
+    "FOTU": ("FOTU",),
+}
+
+# Comparison / context regions
+CONTEXT_REGIONS: dict[str, tuple[str, ...]] = {
+    "MOs":  ("MOs",),
+    "VISp": ("VISp",),
+}
+
+ALL_DECODE_REGIONS: dict[str, tuple[str, ...]] = {
+    **CHOICE_REGIONS,
+    **CONTEXT_REGIONS,
 }
 
 
@@ -30,3 +69,13 @@ def unit_in_region(acronym: str, spec_region: str) -> bool:
         if a == target or a.startswith(target):
             return True
     return False
+
+
+def unit_in_any_decode_region(acronym: str) -> str | None:
+    """Return the first matching decode-region key, or None."""
+    a = str(acronym)
+    for region, prefixes in ALL_DECODE_REGIONS.items():
+        for p in prefixes:
+            if a == p or a.startswith(p):
+                return region
+    return None

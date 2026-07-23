@@ -223,6 +223,143 @@ def rollout_closed_loop(
     }
 
 
+def tick_phase_labels(phase) -> list[str]:
+    """Human-readable phase name for each within-trial tick (length n_steps)."""
+    labels: list[str] = []
+    for tick in range(phase.n_steps):
+        if tick < phase.stim_start:
+            labels.append("baseline")
+        elif tick >= phase.feedback_start:
+            labels.append("feedback")
+        elif tick == phase.response_tick:
+            labels.append("response")
+        elif tick == phase.go_tick:
+            labels.append("go")
+        else:
+            labels.append("stim")
+    return labels
+
+
+def rollout_hidden_by_tick(
+    model: Any,
+    batch: SyntheticBatch,
+    cfg: dict,
+    model_id: str,
+    *,
+    seed: int = 0,
+    regime: str = "history_only",
+) -> Dict[str, np.ndarray]:
+    """Closed-loop rollout that records the hidden state at **every** within-trial tick.
+
+    Same recurrent dynamics as :func:`rollout_closed_loop` (baseline → stimulus →
+    go → response → feedback with the model's own chosen action), but instead of
+    only the pre-stimulus state it stores the hidden state after each tick.
+
+    Returns
+    -------
+    dict with:
+        hidden_by_tick : (n_sessions, n_trials, n_steps, hidden_dim) float32.
+                         For Bayes hidden_dim == 1 (the scalar prior q).
+        true_p_right   : (n_sessions, n_trials)
+        n_steps        : int
+        tick_phase     : list[str] length n_steps
+    """
+    if regime not in REGIMES:
+        raise ValueError(f"unknown regime={regime}")
+
+    n_sessions, n_trials = batch.shape
+    phase = batch.phase
+    noise_std = float(cfg.get("sensory_noise_std_synth", 0.15))
+    rng = np.random.default_rng(seed)
+    n_steps = phase.n_steps
+    hidden_size = int(getattr(model, "hidden_size", 1))
+    fi_gain = float(cfg.get("eval", {}).get("fi_oracle_logit_gain", 2.5))
+    use_fi = regime == "full_information"
+    is_bayes = model_id == "bayes"
+
+    hidden_by_tick = np.zeros(
+        (n_sessions, n_trials, n_steps, hidden_size), dtype=np.float32
+    )
+
+    state = model.zero_state(n_sessions)
+    zeros = np.zeros((n_sessions, N_INPUTS), dtype=np.float64)  # noqa: F841 (parity)
+
+    def apply_oracle(logits: np.ndarray, true_p: np.ndarray) -> np.ndarray:
+        if not use_fi:
+            return logits
+        p = np.clip(true_p, 1e-4, 1.0 - 1e-4)
+        log_odds = np.log(p) - np.log(1.0 - p)
+        out = logits.copy()
+        out[:, RIGHT] = out[:, RIGHT] + fi_gain * log_odds
+        out[:, LEFT] = out[:, LEFT] - fi_gain * log_odds
+        return out
+
+    def store(step: int, t: int) -> None:
+        if is_bayes:
+            hidden_by_tick[:, t, step, 0] = state
+        else:
+            hidden_by_tick[:, t, step, :] = state
+
+    for t in range(n_trials):
+        sides = batch.side[:, t]
+        contrasts = batch.contrast[:, t]
+        true_p_t = batch.p_right[:, t]
+        trial_x = np.zeros((n_sessions, n_steps, N_INPUTS), dtype=np.float64)
+        for s in range(n_sessions):
+            noise = rng.normal(0.0, noise_std, size=2) if noise_std > 0 else None
+            tx, _ = paint_trial(
+                side=int(sides[s]),
+                contrast=float(contrasts[s]),
+                action=int(sides[s]),
+                rewarded=True,
+                phase=phase,
+                visual_noise=noise,
+            )
+            tx[phase.feedback_start :, ACTION_LEFT] = 0.0
+            tx[phase.feedback_start :, ACTION_RIGHT] = 0.0
+            tx[phase.feedback_start :, REWARDED] = 0.0
+            tx[phase.feedback_start :, NOT_REWARDED] = 0.0
+            trial_x[s] = tx
+
+        # Baseline ticks
+        for step in range(phase.stim_start):
+            state = _step(model, model_id, trial_x[:, step], state)
+            store(step, t)
+
+        # Stimulus → response ticks (actual path)
+        acts = np.zeros(n_sessions, dtype=np.int64)
+        for step in range(phase.stim_start, phase.response_tick + 1):
+            xt = trial_x[:, step]
+            state = _step(model, model_id, xt, state)
+            store(step, t)
+            if step == phase.response_tick:
+                logits = apply_oracle(_logits(model, model_id, xt, state), true_p_t)
+                acts = np.argmax(_softmax(logits), axis=1).astype(np.int64)
+
+        # Paint feedback channels from the model's chosen action
+        for s in range(n_sessions):
+            side = int(sides[s])
+            act = int(acts[s])
+            rew = act == side
+            for ft in range(phase.feedback_start, n_steps):
+                trial_x[s, ft, ACTION_LEFT] = 1.0 if act == LEFT else 0.0
+                trial_x[s, ft, ACTION_RIGHT] = 1.0 if act == RIGHT else 0.0
+                trial_x[s, ft, REWARDED] = 1.0 if rew else 0.0
+                trial_x[s, ft, NOT_REWARDED] = 0.0 if rew else 1.0
+
+        # Feedback ticks
+        for step in range(phase.feedback_start, n_steps):
+            state = _step(model, model_id, trial_x[:, step], state)
+            store(step, t)
+
+    return {
+        "hidden_by_tick": hidden_by_tick,
+        "true_p_right": batch.p_right.copy(),
+        "n_steps": np.asarray(n_steps),
+        "tick_phase": tick_phase_labels(phase),
+    }
+
+
 def rollout_real_session(
     model: Any,
     data: dict,
