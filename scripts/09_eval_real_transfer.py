@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""09 — Frozen-weight transfer eval on real mouse tick sessions.
+"""09 — Frozen-weight transfer eval on real tick sessions (legacy).
+
+Scores **correct stimulus side only** (not mouse choice). Prefer `11`.
 
 Usage:
   python scripts/09_eval_real_transfer.py
@@ -29,7 +31,6 @@ def run_session(model, model_id: str, data: dict) -> dict:
     n_steps = int(data["n_steps"])
     resp = int(data["response_tick"])
     correct_side = data["correct_side"]
-    mouse_choice = data["mouse_choice"]
 
     is_bayes = model_id == "bayes"
     state = model.zero_state(1)
@@ -55,15 +56,13 @@ def run_session(model, model_id: str, data: dict) -> dict:
                     pred[t] = int(np.argmax(probs[0]))
 
     acc_correct = float(np.mean(pred == correct_side))
-    acc_mouse = float(np.mean(pred == mouse_choice))
     p_c = np.where(correct_side == RIGHT, p_right, 1.0 - p_right)
-    p_m = np.where(mouse_choice == RIGHT, p_right, 1.0 - p_right)
     return {
         "n_trials": n_trials,
+        "accuracy": acc_correct,
         "acc_vs_correct_side": acc_correct,
-        "acc_vs_mouse_choice": acc_mouse,
+        "cross_entropy": float(-np.mean(np.log(np.clip(p_c, 1e-12, 1.0)))),
         "ce_vs_correct_side": float(-np.mean(np.log(np.clip(p_c, 1e-12, 1.0)))),
-        "ce_vs_mouse_choice": float(-np.mean(np.log(np.clip(p_m, 1e-12, 1.0)))),
     }
 
 
@@ -72,7 +71,6 @@ def eval_model(model_id: str, cfg: dict) -> dict:
     if not ckpt.exists():
         raise FileNotFoundError(f"Missing {ckpt}")
     model = load_model(model_id, ckpt)
-    tick_dir = ROOT / "data" / "processed" / "real_v2_ticks"
     man_path = ROOT / "data" / "manifests" / "real_v2_ticks.json"
     if not man_path.exists():
         raise FileNotFoundError("Run python scripts/06_map_real_to_v2_ticks.py first")
@@ -92,10 +90,11 @@ def eval_model(model_id: str, cfg: dict) -> dict:
         "stage": "real_transfer",
         "model_id": model_id,
         "n_sessions": len(per),
+        "scoring": "correct_side_only",
+        "accuracy": mean_key("accuracy"),
         "acc_vs_correct_side": mean_key("acc_vs_correct_side"),
-        "acc_vs_mouse_choice": mean_key("acc_vs_mouse_choice"),
+        "cross_entropy": mean_key("cross_entropy"),
         "ce_vs_correct_side": mean_key("ce_vs_correct_side"),
-        "ce_vs_mouse_choice": mean_key("ce_vs_mouse_choice"),
         "per_session": per,
     }
     out = ROOT / cfg["paths"]["reports"] / "metrics"
@@ -118,13 +117,8 @@ def main() -> int:
     models = [args.model] if args.model else list(cfg["models"])
     results = []
     for mid in models:
-        try:
-            results.append(
-                {k: v for k, v in eval_model(mid, cfg).items() if k != "per_session"}
-            )
-        except FileNotFoundError as exc:
-            print(f"SKIP {mid}: {exc}", file=sys.stderr)
-    print(json.dumps(results, indent=2))
+        results.append(eval_model(mid, cfg))
+        print(json.dumps({k: results[-1][k] for k in ("model_id", "accuracy", "n_sessions")}))
     return 0
 
 

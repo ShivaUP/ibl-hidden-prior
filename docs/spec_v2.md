@@ -15,8 +15,8 @@ Train models **only on synthetic IBL-like sessions**, compare them on **held-out
 | Priority | Criterion |
 |---|---|
 | **Primary** | Fair ranking on synthetic held-out: choice CE/accuracy, psychometric-by-block, zero-evidence / pre-stim prior probes, switch-centered adaptation |
-| **Secondary** | Real-behavior transfer (no fine-tune): score vs **correct side** and vs **mouse choice**; psychometrics + switches |
-| **Not v2 success** | Neural VE / MOs–vlOFC claims (parked) |
+| **Secondary** | Real-behavior transfer (no fine-tune): score vs **correct side only**; psychometrics + switches |
+| **Secondary** | Neural VE (MOs, vlOFC) + behavior-matched confirmatory survival on synth-trained model belief |
 
 ---
 
@@ -75,7 +75,7 @@ Synthetic ≠ replay of real eid sequences (keeps transfer meaningful).
 |---|---|
 | Synth train | Target = **correct stim side**; teacher-forced action/±reward (+ configurable error rate) |
 | Synth held-out | Closed-loop feedback (model’s own action); primary ranking |
-| Real transfer | Frozen weights; map ALF trials → same tick/channel schema; feedback ticks use **mouse** action/outcome; score **correct side** and **mouse choice** |
+| Real transfer | Frozen weights; map ALF trials → same tick/channel schema; feedback ticks use session action/outcome as **inputs**; score **correct side only** (not mouse choice) |
 | Fine-tune on mice | **Out of v2** |
 | RT head / joint RT loss | **Out of v2 primary** |
 

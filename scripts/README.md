@@ -14,8 +14,12 @@ All user-facing entrypoints are numbered. Run in order unless a later step’s i
 | 07 | `07_train_model.py` | Train models (`--all`). BPTT/GRU/Bayes: 60×24×929; **PC: 60×24×240** (stable prior learning) |
 | 08 | `08_eval_synth_heldout.py` | Legacy single held-out eval (prefer `11`) |
 | 09 | `09_eval_real_transfer.py` | Legacy real transfer (prefer `11 --domain real`) |
-| 10 | `10_make_figures.py` | Multipanels + comparisons for synth×real×regime (after `11`) |
+| 10 | `10_make_figures.py` | Multipanels + readable model scorecards / switch boards (after `11`) |
 | 11 | `11_eval_regimes.py` | Synth + real regimes: `history_only` / `full_information` / `fixed_prior` |
+| 12 | `12_build_neural_intersect.py` | Copy/refresh neural∩behavior manifest into `reports/v2/neural/` |
+| 13 | `13_eval_neural_pilot.py` | Neural prior VE pilot (MOs, vlOFC) with synth-trained model belief |
+| 14 | `14_eval_neural_matched.py` | Behavior-matched VE + bootstrap survival (Holm) |
+| 15 | `15_make_neural_figures.py` | Neural VE / survival figures |
 
 ## Typical full run
 
@@ -32,12 +36,21 @@ python scripts/06_map_real_to_v2_ticks.py
 python scripts/07_train_model.py --all
 python scripts/11_eval_regimes.py          # synth + real × all regimes
 python scripts/10_make_figures.py
+python scripts/12_build_neural_intersect.py
+python scripts/13_eval_neural_pilot.py
+python scripts/14_eval_neural_matched.py
+python scripts/15_make_neural_figures.py
 ```
 
 Figure layout after `10`:
+- `reports/v2/figures/scorecards/{synth|real}_{regime}_scorecard.png` ← ranking numbers + precise reading text
+- `reports/v2/figures/scorecards/SCORECARD_GUIDE.md`
 - `reports/v2/figures/by_model/{model}/{synth|real}/{regime}/multipanel_diagnostics.png`
-- `reports/v2/figures/comparison/{synth|real}_{regime}_{accuracy|history_gap|switch_curves}.png`
-- `reports/v2/figures/comparison/synth_vs_real_{regime}_{accuracy|history_gap}.png`
+- `reports/v2/figures/comparison/{synth|real}_{regime}_switch_board.png`
+- `reports/v2/figures/comparison/synth_vs_real_{regime}_board.png`
+- Guide: `reports/v2/figures/COMPARISON_GUIDE.md`
+
+Real eval scope: `docs/REAL_EVAL.md`. Neural: `reports/v2/neural/` + `reports/v2/figures/neural/`.
 
 If manifests / `synthetic_v2.yaml` / trials already exist locally, you can start at **04** or **05**.
 

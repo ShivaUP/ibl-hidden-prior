@@ -155,7 +155,11 @@ def eval_real(model_id: str, regime: str, cfg: dict) -> dict:
                 {
                     "stage": "real_transfer",
                     "model_id": model_id,
-                    **{k: metrics[k] for k in metrics if k.startswith("acc_") or k.startswith("ce_")},
+                    "scoring": "correct_side_only",
+                    "accuracy": metrics["accuracy"],
+                    "acc_vs_correct_side": metrics["acc_vs_correct_side"],
+                    "cross_entropy": metrics["cross_entropy"],
+                    "ce_vs_correct_side": metrics["ce_vs_correct_side"],
                     "n_sessions": metrics["n_sessions"],
                 },
                 indent=2,

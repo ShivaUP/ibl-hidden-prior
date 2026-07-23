@@ -1,10 +1,8 @@
 {
   "accuracy": 0.8173777315296566,
   "acc_vs_correct_side": 0.8173777315296566,
-  "acc_vs_mouse_choice": 0.7572320499479709,
   "cross_entropy": 0.35506916285937923,
   "ce_vs_correct_side": 0.35506916285937923,
-  "ce_vs_mouse_choice": 0.5888410957564407,
   "domain": "real",
   "regime": "history_only",
   "model_id": "tanh_bptt",

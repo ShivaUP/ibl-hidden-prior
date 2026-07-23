@@ -1,10 +1,8 @@
 {
   "accuracy": 0.7967741935483871,
   "acc_vs_correct_side": 0.7967741935483871,
-  "acc_vs_mouse_choice": 0.7195629552549427,
   "cross_entropy": 1.1357247085339273,
   "ce_vs_correct_side": 1.1357247085339273,
-  "ce_vs_mouse_choice": 1.8173271691756219,
   "domain": "real",
   "regime": "full_information",
   "model_id": "bayes",

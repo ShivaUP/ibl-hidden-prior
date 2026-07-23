@@ -1,10 +1,8 @@
 {
   "accuracy": 0.8273673257023934,
   "acc_vs_correct_side": 0.8273673257023934,
-  "acc_vs_mouse_choice": 0.7620187304890739,
   "cross_entropy": 0.3460178307558199,
   "ce_vs_correct_side": 0.3460178307558199,
-  "ce_vs_mouse_choice": 0.6169800025460282,
   "domain": "real",
   "regime": "history_only",
   "model_id": "gru",

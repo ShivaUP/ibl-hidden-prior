@@ -1,9 +1,10 @@
 {
   "stage": "real_transfer",
   "model_id": "tanh_pc",
+  "scoring": "correct_side_only",
+  "accuracy": 0.7542143600416233,
   "acc_vs_correct_side": 0.7542143600416233,
-  "acc_vs_mouse_choice": 0.6611862643080125,
+  "cross_entropy": 0.417490148953492,
   "ce_vs_correct_side": 0.417490148953492,
-  "ce_vs_mouse_choice": 0.7723640111616846,
   "n_sessions": 10
 }

@@ -395,20 +395,18 @@ def accuracy_and_ce(roll: Dict[str, np.ndarray]) -> Dict[str, float]:
 
 
 def accuracy_real(roll: Dict[str, np.ndarray]) -> Dict[str, float]:
+    """Real transfer: accuracy / CE vs **correct stimulus side only** (not mouse)."""
+
     valid = roll["valid"] if "valid" in roll else np.ones_like(roll["side"], dtype=bool)
     side = roll["side"][valid]
     pred = roll["choice"][valid]
     pr = roll["p_choice_right"][valid]
-    mouse = roll["mouse_choice"][valid]
     p_c = np.where(side == RIGHT, pr, 1.0 - pr)
-    p_m = np.where(mouse == RIGHT, pr, 1.0 - pr)
     return {
         "accuracy": float(np.mean(pred == side)),
         "acc_vs_correct_side": float(np.mean(pred == side)),
-        "acc_vs_mouse_choice": float(np.mean(pred == mouse)),
         "cross_entropy": float(-np.mean(np.log(np.clip(p_c, 1e-12, 1.0)))),
         "ce_vs_correct_side": float(-np.mean(np.log(np.clip(p_c, 1e-12, 1.0)))),
-        "ce_vs_mouse_choice": float(-np.mean(np.log(np.clip(p_m, 1e-12, 1.0)))),
     }
 
 
@@ -480,6 +478,76 @@ def switch_centered_zero_evidence(
         else:
             out[direction] = np.full_like(offsets, np.nan, dtype=np.float64)
     return out
+
+
+def switch_centered_per_session(
+    roll,
+    *,
+    before: int = 20,
+    after: int = 30,
+) -> Dict[str, object]:
+    """Per-session mean switch curves (for variance-by-color plots)."""
+
+    try:
+        true_p = _get(roll, "true_p_right")
+    except KeyError:
+        true_p = 1.0 - _get(roll, "probability_left")
+    try:
+        pref = _get(roll, "zero_evidence_p_right")
+    except KeyError:
+        pref = _get(roll, "belief")
+
+    offsets = np.arange(-before, after + 1)
+    n_sess = int(true_p.shape[0])
+    per: list[Dict[str, np.ndarray]] = []
+    for session in range(n_sess):
+        valid = np.isfinite(true_p[session])
+        if "valid" in (getattr(roll, "files", None) or roll):
+            try:
+                valid = valid & np.asarray(_get(roll, "valid")[session], dtype=bool)
+            except Exception:
+                pass
+        groups: Dict[str, list] = {"low_to_high": [], "high_to_low": []}
+        if not valid.any():
+            per.append(
+                {
+                    "low_to_high": np.full_like(offsets, np.nan, dtype=np.float64),
+                    "high_to_low": np.full_like(offsets, np.nan, dtype=np.float64),
+                }
+            )
+            continue
+        p_sess = true_p[session].copy()
+        pref_sess = pref[session].copy()
+        last = float(p_sess[np.flatnonzero(valid)[0]])
+        for t in range(len(p_sess)):
+            if not valid[t]:
+                p_sess[t] = last
+            else:
+                last = float(p_sess[t])
+        switch_indices = np.flatnonzero(np.diff(p_sess) != 0) + 1
+        for switch in switch_indices:
+            if switch - before < 0 or switch + after >= p_sess.shape[0]:
+                continue
+            if not valid[switch - before : switch + after + 1].all():
+                continue
+            direction = (
+                "low_to_high"
+                if p_sess[switch] > p_sess[switch - 1]
+                else "high_to_low"
+            )
+            groups[direction].append(
+                pref_sess[switch - before : switch + after + 1]
+            )
+        entry: Dict[str, np.ndarray] = {}
+        for direction in ("low_to_high", "high_to_low"):
+            curves = groups[direction]
+            entry[direction] = (
+                np.mean(np.stack(curves), axis=0)
+                if curves
+                else np.full_like(offsets, np.nan, dtype=np.float64)
+            )
+        per.append(entry)
+    return {"offsets": offsets, "per_session": per}
 
 
 def summarize_kyan_diagnostics(roll) -> Dict[str, object]:

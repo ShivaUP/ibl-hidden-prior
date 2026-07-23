@@ -1,0 +1,28 @@
+{
+  "stage": "neural_pilot_v2",
+  "created_utc": "2026-07-23T00:22:59.652158+00:00",
+  "eid": "1191f865-b10a-45c8-9c48-24a980fd9402",
+  "models": [
+    "tanh_bptt",
+    "tanh_pc",
+    "gru",
+    "bayes"
+  ],
+  "regions": {
+    "MOs": {
+      "n_units": 48,
+      "n_trials": 944,
+      "ve_cv_mouse_prior": 0.11069175661455743,
+      "corr_cv_mouse_prior": 0.3331215653509245
+    },
+    "vlOFC_orbvl": {
+      "n_units": 572,
+      "n_trials": 944,
+      "ve_cv_mouse_prior": 0.37665461846398196,
+      "corr_cv_mouse_prior": 0.616835649205988
+    }
+  },
+  "primary_metric": "ve_linear_recal",
+  "note": "Model q_t = zero-evidence / belief from synth-trained v2 rollouts. Neural target axis = CV Ridge readout of mouse_prior_hat (v1 Phase 8).",
+  "n_ve_rows": 8
+}

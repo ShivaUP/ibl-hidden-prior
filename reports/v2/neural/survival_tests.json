@@ -1,0 +1,30 @@
+[
+  {
+    "region": "MOs",
+    "test": "matched_best_vs_second",
+    "best_model": "gru",
+    "second_model": "tanh_bptt",
+    "delta": 0.022746955900725063,
+    "ci_low": 0.014862996625429092,
+    "ci_high": 0.03228393851267052,
+    "p_boot": 0.0,
+    "ve_cand": 0.10810499743345447,
+    "ve_base": 0.08535804153272941,
+    "p_holm": 0.0,
+    "survive_alpha_05": true
+  },
+  {
+    "region": "vlOFC_orbvl",
+    "test": "matched_best_vs_second",
+    "best_model": "gru",
+    "second_model": "tanh_bptt",
+    "delta": 0.0311261610086625,
+    "ci_low": 0.0177517908140977,
+    "ci_high": 0.04491964994916028,
+    "p_boot": 0.0,
+    "ve_cand": 0.3772072242814617,
+    "ve_base": 0.3460810632727992,
+    "p_holm": 0.0,
+    "survive_alpha_05": true
+  }
+]

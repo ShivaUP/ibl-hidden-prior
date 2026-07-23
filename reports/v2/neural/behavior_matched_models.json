@@ -1,0 +1,66 @@
+{
+  "condition": "history_only",
+  "choice_primary": true,
+  "choice_epsilon": 0.05,
+  "rt_nll_floor": 1000000000.0,
+  "best_model": "gru",
+  "best_choice_nll": 0.3460178307558199,
+  "matched_models": [
+    "bayes",
+    "gru",
+    "tanh_bptt"
+  ],
+  "excluded_models": [
+    "tanh_pc"
+  ],
+  "rows": [
+    {
+      "model": "bayes",
+      "choice_nll": 0.3750661856309002,
+      "rt_nll": 0.0,
+      "choice_delta_from_best": 0.02904835487508034,
+      "in_choice_epsilon_ball": true,
+      "passes_rt_floor": true,
+      "matched": true,
+      "exclude_reason": ""
+    },
+    {
+      "model": "gru",
+      "choice_nll": 0.3460178307558199,
+      "rt_nll": 0.0,
+      "choice_delta_from_best": 0.0,
+      "in_choice_epsilon_ball": true,
+      "passes_rt_floor": true,
+      "matched": true,
+      "exclude_reason": ""
+    },
+    {
+      "model": "tanh_bptt",
+      "choice_nll": 0.35506916285937923,
+      "rt_nll": 0.0,
+      "choice_delta_from_best": 0.00905133210355935,
+      "in_choice_epsilon_ball": true,
+      "passes_rt_floor": true,
+      "matched": true,
+      "exclude_reason": ""
+    },
+    {
+      "model": "tanh_pc",
+      "choice_nll": 0.417490148953492,
+      "rt_nll": 0.0,
+      "choice_delta_from_best": 0.07147231819767214,
+      "in_choice_epsilon_ball": false,
+      "passes_rt_floor": true,
+      "matched": false,
+      "exclude_reason": "choice_nll_delta=0.0715>0.05"
+    }
+  ],
+  "assert_choice_primary": true,
+  "metric_source": "reports/v2/metrics/real_history_only_*.json CE (correct side)",
+  "created_utc": "2026-07-23T00:23:01.512933+00:00",
+  "notes": [
+    "Choice-primary \u03b5-ball on real history_only cross-entropy.",
+    "RT floor non-binding in v2.",
+    "Neural VE uses synth-trained model belief on neural pilot eid."
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "stage": "neural_matched_v2",
+  "created_utc": "2026-07-23T00:23:01.512933+00:00",
+  "matched_models": [
+    "bayes",
+    "gru",
+    "tanh_bptt"
+  ],
+  "excluded_models": [
+    "tanh_pc"
+  ],
+  "ranking": [
+    {
+      "region": "MOs",
+      "ranking": [
+        {
+          "model": "gru",
+          "ve_linear_recal": 0.1081049974334544,
+          "corr": 0.3287932442028796
+        },
+        {
+          "model": "tanh_bptt",
+          "ve_linear_recal": 0.0853580415327294,
+          "corr": 0.2921609856444379
+        },
+        {
+          "model": "bayes",
+          "ve_linear_recal": 0.0504004669557293,
+          "corr": 0.2245004831970954
+        }
+      ],
+      "best_matched_model": "gru",
+      "best_matched_ve": 0.1081049974334544
+    },
+    {
+      "region": "vlOFC_orbvl",
+      "ranking": [
+        {
+          "model": "gru",
+          "ve_linear_recal": 0.3772072242814617,
+          "corr": 0.6141719826575139
+        },
+        {
+          "model": "tanh_bptt",
+          "ve_linear_recal": 0.3460810632727992,
+          "corr": 0.5882865486077333
+        },
+        {
+          "model": "bayes",
+          "ve_linear_recal": 0.2048466091549718,
+          "corr": 0.4525998333572072
+        }
+      ],
+      "best_matched_model": "gru",
+      "best_matched_ve": 0.3772072242814617
+    }
+  ],
+  "survival": [
+    {
+      "region": "MOs",
+      "test": "matched_best_vs_second",
+      "best_model": "gru",
+      "second_model": "tanh_bptt",
+      "delta": 0.022746955900725063,
+      "ci_low": 0.014862996625429092,
+      "ci_high": 0.03228393851267052,
+      "p_boot": 0.0,
+      "ve_cand": 0.10810499743345447,
+      "ve_base": 0.08535804153272941,
+      "p_holm": 0.0,
+      "survive_alpha_05": true
+    },
+    {
+      "region": "vlOFC_orbvl",
+      "test": "matched_best_vs_second",
+      "best_model": "gru",
+      "second_model": "tanh_bptt",
+      "delta": 0.0311261610086625,
+      "ci_low": 0.0177517908140977,
+      "ci_high": 0.04491964994916028,
+      "p_boot": 0.0,
+      "ve_cand": 0.3772072242814617,
+      "ve_base": 0.3460810632727992,
+      "p_holm": 0.0,
+      "survive_alpha_05": true
+    }
+  ],
+  "config_paths": {
+    "artifacts": "artifacts/v2",
+    "reports": "reports/v2",
+    "figures": "reports/v2/figures"
+  }
+}

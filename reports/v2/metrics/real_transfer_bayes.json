@@ -1,9 +1,10 @@
 {
   "stage": "real_transfer",
   "model_id": "bayes",
+  "scoring": "correct_side_only",
+  "accuracy": 0.7947970863683663,
   "acc_vs_correct_side": 0.7947970863683663,
-  "acc_vs_mouse_choice": 0.7429760665972945,
+  "cross_entropy": 0.3750661856309002,
   "ce_vs_correct_side": 0.3750661856309002,
-  "ce_vs_mouse_choice": 0.5467258193674135,
   "n_sessions": 10
 }

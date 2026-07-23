@@ -1,0 +1,3 @@
+region,test,best_model,second_model,delta,ci_low,ci_high,p_boot,ve_cand,ve_base,p_holm,survive_alpha_05
+MOs,matched_best_vs_second,gru,tanh_bptt,0.022746955900725063,0.014862996625429092,0.03228393851267052,0.0,0.10810499743345447,0.08535804153272941,0.0,True
+vlOFC_orbvl,matched_best_vs_second,gru,tanh_bptt,0.0311261610086625,0.0177517908140977,0.04491964994916028,0.0,0.3772072242814617,0.3460810632727992,0.0,True
