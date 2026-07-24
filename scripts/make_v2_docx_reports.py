@@ -98,6 +98,33 @@ def _neural_summary():
     return {"ve_session_mean": sess, "matched": matched, "survival": surv, "n_rows": len(u)}
 
 
+def _mlp_switch_decode_summary() -> dict | None:
+    path = ROOT / "reports" / "v2" / "switch_block_decoding" / "mlp_switch_block_decode_metrics.json"
+    if not path.exists():
+        return None
+    raw = json.loads(path.read_text())
+    out: dict = {"models": {}, "neural": {}}
+
+    def _pack(agg: dict) -> dict:
+        packed = {}
+        for name, cur in agg.items():
+            off = np.asarray(cur["offsets"], dtype=float)
+            mean = np.asarray(cur["mean"], dtype=float)
+            packed[name] = {
+                "window": float(np.nanmean(mean)),
+                "pre": float(np.nanmean(mean[(off >= -15) & (off <= -1)])),
+                "post": float(np.nanmean(mean[(off >= 0) & (off <= 15)])),
+                "at0": float(mean[off == 0][0]) if np.any(off == 0) else float("nan"),
+            }
+        return packed
+
+    if "models" in raw and "aggregate" in raw["models"]:
+        out["models"] = _pack(raw["models"]["aggregate"])
+    if "neural" in raw and "aggregate" in raw["neural"]:
+        out["neural"] = _pack(raw["neural"]["aggregate"])
+    return out
+
+
 def _pretty(mid: str) -> str:
     return {
         "tanh_bptt": "tanh BPTT",
@@ -374,11 +401,13 @@ def build_methods() -> Path:
         "0.2↔0.8 switches? Which account better captures how fast and how the belief is revised, not just "
         "steady-state accuracy? (Mouse subjective-prior matching around switches is an explicit follow-up.)",
         "Q3 — Neural prior alignment: In prior-encoding regions (MOs, vlOFC/ORBvl, and related sites), which "
-        "model’s belief better matches neural prior readouts, including after behavior matching?",
+        "model’s belief better matches neural prior readouts after behavior matching? Complementarily, can an "
+        "MLP decode true block identity around switches from model latents versus from neural prior readouts?",
     ]))
     parts.append(p_xml(
         "Reporting order follows the science: overall correctness → switch-centered correctness "
-        "(0.2→0.8 and 0.8→0.2 separately) → belief / history-gap dynamics → neural VE."
+        "(0.2→0.8 and 0.8→0.2 separately) → belief / history-gap dynamics → neural VE → MLP switch-centered "
+        "block decoding."
     ))
 
     parts.append(h_xml(1, "2. Task and data"))
@@ -858,35 +887,85 @@ def build_methods() -> Path:
         "coverage uneven across sessions; mouse prior is itself a model of behavior.",
     ]))
 
-    parts.append(h_xml(1, "8. Limitations and open risks"))
-    parts.append(h_xml(2, "8.1 Cohort and coverage"))
+    parts.append(h_xml(1, "8. MLP switch-centered block decoding"))
+    parts.append(p_xml(
+        "A complementary probe asks whether true biased-block identity (P(right) = 0.2 vs 0.8) can be "
+        "decoded around genuine block switches from (i) model latent trajectories and (ii) neural prior "
+        "readouts. This is implemented in scripts/16_plot_mlp_switch_block_decoding.py and "
+        "src/models_v2/block_decode.py (spec: docs/spec_switch_block_decoding.md)."
+    ))
+
+    parts.append(h_xml(2, "8.1 What is decoded"))
+    parts.append(ul_xml([
+        "Target label: biased-block identity on each trial in an isolated genuine 0.2↔0.8 switch window "
+        "(−30 … +30 trials relative to the switch; transitions involving 0.5 are excluded).",
+        "Panel 1 (models, history-only synthetic): features are concatenated within-trial hidden states "
+        "under a zero-current-evidence probe (visual / action / reward channels zeroed; go cue retained). "
+        "This asks how linearly/nonlinearly readable the model’s history-dependent latent is for block "
+        "identity when current sensory evidence is removed.",
+        "Panel 2 (neural, shared cohort): features are the scalar out-of-fold CV-Ridge neural prior "
+        "readout û_t in each primary ROI (same construction as §7). One decode curve per region.",
+    ]))
+
+    parts.append(h_xml(2, "8.2 Decoder and evaluation protocol"))
+    parts.append(ul_xml([
+        "Decoder: one-hidden-layer MLP (hidden size 64) trained with early stopping on a validation split "
+        "(settings shared across panels; see DecoderSettings).",
+        "Models panel: held-out synthetic sessions (48 × 929 trials) with a deterministic train / validation / "
+        "test session split; matched inputs across models; accuracy reported on the test split as a function "
+        "of trials-from-switch.",
+        "Neural panel: leave-one-session-out evaluation on the shared behavior+neural cohort (n=8), so "
+        "uncertainty reflects session variability.",
+        "Uncertainty bands: models — sample SD across available task-model seeds (canonical seed 7 if no "
+        "replicates); neural — sample SD across held-out sessions.",
+        "Primary figure: reports/v2/figures/switch_block_decoding/mlp_rnn_vs_pc_switch_decoding.png "
+        "(two panels). Metrics JSON: reports/v2/switch_block_decoding/mlp_switch_block_decode_metrics.json.",
+    ]))
+
+    parts.append(h_xml(2, "8.3 How to read the curves"))
+    parts.append(p_xml(
+        "Decode accuracy near 1.0 far from the switch means block identity is strongly represented in the "
+        "features. A dip at trial 0 is expected: the label changes while latents / neural readouts update "
+        "with a delay. Comparing models asks which latent supports more stable block decoding through the "
+        "switch; comparing ROIs asks where neural prior readouts carry readable block information under the "
+        "same MLP probe. This analysis is related to, but distinct from, neural VE (§7): VE asks whether "
+        "model belief explains û, whereas block decoding asks whether û (or model latents) explain true "
+        "block identity around switches."
+    ))
+
+    parts.append(h_xml(1, "9. Limitations and open risks"))
+    parts.append(h_xml(2, "9.1 Cohort and coverage"))
     parts.append(ul_xml([
         "ROI coverage is by cohort union; individual sessions typically contribute 1–few regions. Survival "
         "tests are underpowered where n_sessions is small (e.g. ACAd in the current lock).",
         "Almost-perfect QC plus ephys requirements yield a small n; results should be read as a locked "
         "pilot cohort, not a brain-wide census.",
     ]))
-    parts.append(h_xml(2, "8.2 Modeling and transfer"))
+    parts.append(h_xml(2, "9.2 Modeling and transfer"))
     parts.append(ul_xml([
         "Synthetic training approximates empirical statistics but does not replay individual mice "
         "(intentional; still a distribution shift risk on transfer).",
         "Teacher-forced training feedback versus mouse feedback on transfer is a known shift (V2-R4).",
-        "tanh PC uses the same session length as BPTT; compute cost is higher due to 32 inference rounds.",
+        "tanh PC / GRU PC use the same session length as BPTT; compute cost is higher due to 32 inference rounds.",
         "Explicit Bayes is parked (legacy module retained) and is not part of the active ranking.",
     ]))
-    parts.append(h_xml(2, "8.3 Neural analysis"))
+    parts.append(h_xml(2, "9.3 Neural analysis"))
     parts.append(ul_xml([
         "Embodied-prior controls (video / eye position) are not yet applied.",
         "The neural window is peri-stimulus only; complementary inter-trial decoding is left for later work.",
         "Mouse prior and neural axis are estimated quantities; errors in either reduce neural VE for all "
         "models and can shrink detectable advantages.",
         "Linear ridge + affine recalibration cannot capture nonlinear neural–belief relationships.",
+        "MLP block decoding on scalar neural û is nearly a calibrated threshold; few sessions per ROI widen "
+        "session SD and thin far-window switches.",
     ]))
-    parts.append(h_xml(2, "8.4 Out of v2 scope"))
+    parts.append(h_xml(2, "9.4 Out of v2 scope"))
     parts.append(ul_xml([
         "Mouse fine-tuning, reaction-time primary losses, meta-RL, and Bayesian+credit-assignment twins "
         "are parked.",
         "Expanded Findling ROIs remain optional until embodied controls and larger coverage exist.",
+        "Strict matching of model belief to mouse subjective-prior trajectories around switches remains "
+        "an explicit follow-up (strongest form of Q2).",
     ]))
 
     out = ROOT / "reports" / "v2" / "METHODS_DETAILED.docx"
@@ -899,6 +978,7 @@ def build_article() -> Path:
     by = {(r["domain"], r["regime"], r["model"]): r for r in metrics}
     prior = _per_prior_real_history()
     neural = _neural_summary()
+    mlp_sw = _mlp_switch_decode_summary()
     man = json.loads((ROOT / "data" / "manifests" / "shared_behavior_neural_eids.json").read_text())
     n = man.get("n_sessions", 20)
 
@@ -940,6 +1020,8 @@ def build_article() -> Path:
          "Figure 13. Neural prior variance explained by model belief (session-mean VE)."),
         ("rIdFig14", FIG / "neural" / "survival_tests.png", 6.0, 3.2,
          "Figure 14. Behavior-matched survival of neural advantages across regions."),
+        ("rIdFig15", FIG / "switch_block_decoding" / "mlp_rnn_vs_pc_switch_decoding.png", 6.4, 4.2,
+         "Figure 15. MLP switch-centered block decoding: model latents (left) vs neural prior readouts (right)."),
     ]
     images = [(rid, p) for rid, p, *_ in fig_specs if p.exists()]
     rid_map = {rid: (p, w, h, cap) for rid, p, w, h, cap in fig_specs if p.exists()}
@@ -961,9 +1043,11 @@ def build_article() -> Path:
         f"gate-aware GRU PC. Under history-only evaluation, GRU PC reaches the highest correctness on real "
         f"transfer ({acc('real','history_only','gru_pc'):.3f}), with GRU BPTT close behind "
         f"({acc('real','history_only','gru'):.3f}). BPTT models show larger history gaps than their PC twins. "
-        f"Neural alignment is assessed in four primary prior-related regions (MOs, ORBvl, ACAd, MOp). "
+        f"Neural alignment uses four primary prior-related regions (MOs, ORBvl, ACAd, MOp), including "
+        f"behavior-matched VE and MLP switch-centered block decoding from model latents versus neural "
+        f"prior readouts. "
         + (
-            "Behavior-matched neural comparisons are reported below."
+            "Results are reported below."
             if neural
             else "Neural results for this cohort are being finalized."
         )
@@ -1024,7 +1108,9 @@ def build_article() -> Path:
         "stimulus onset) are mapped by 5-fold cross-validated ridge regression onto a behavior-derived mouse "
         "prior. Model belief is scored by linearly recalibrated variance explained (ve_linear_recal). "
         "Confirmatory claims use a choice CE ε-ball (ε=0.05) plus session-bootstrap survival with Holm "
-        "correction. Detail: METHODS_DETAILED.docx §7."
+        "correction. A complementary MLP probe decodes true 0.2 vs 0.8 block identity around switches from "
+        "zero-evidence model latents (synthetic) and from neural prior readouts (shared cohort). "
+        "Detail: METHODS_DETAILED.docx §7–§8."
     ))
 
     parts.append(h_xml(1, "Results"))
@@ -1167,6 +1253,81 @@ def build_article() -> Path:
             p, w, h, cap = rid_map[rid]
             parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
 
+    parts.append(h_xml(2, "Q3b — MLP switch-centered block decoding"))
+    parts.append(p_xml(
+        "Beyond explaining neural prior axes with model belief, we ask whether true biased-block identity "
+        "(0.2 vs 0.8) is readable around switches from model latents and from neural prior readouts "
+        "(scripts/16_plot_mlp_switch_block_decoding.py). An MLP is trained to decode block identity on "
+        "isolated 0.2↔0.8 switch windows (−30…+30)."
+    ))
+    if mlp_sw and mlp_sw.get("models"):
+        mm = mlp_sw["models"]
+        parts.append(p_xml(
+            "On matched synthetic history-only sessions, BPTT latents support the highest whole-window decode "
+            f"accuracy (GRU {mm.get('gru', {}).get('window', float('nan')):.3f}, "
+            f"tanh BPTT {mm.get('tanh_bptt', {}).get('window', float('nan')):.3f}), with PC twins lower "
+            f"(GRU PC {mm.get('gru_pc', {}).get('window', float('nan')):.3f}, "
+            f"tanh PC {mm.get('tanh_pc', {}).get('window', float('nan')):.3f}). Pre-switch accuracy is near "
+            "ceiling for BPTT; all models show a sharp dip at the switch trial itself (label change before "
+            "latents fully update)."
+        ))
+        rows = []
+        for mid in ("tanh_bptt", "tanh_pc", "gru", "gru_pc"):
+            if mid not in mm:
+                continue
+            v = mm[mid]
+            rows.append([
+                _pretty(mid),
+                f"{v['window']:.3f}",
+                f"{v['pre']:.3f}",
+                f"{v['post']:.3f}",
+                f"{v['at0']:.3f}",
+            ])
+        if rows:
+            parts.append(table_xml(
+                ["Model", "Window mean", "Pre (−15…−1)", "Post (0…15)", "At switch (0)"],
+                rows,
+                title="Table 4. MLP block-decode accuracy from zero-evidence model latents (history-only synth).",
+                col_fracs=[0.22, 0.20, 0.20, 0.20, 0.18],
+            ))
+    if mlp_sw and mlp_sw.get("neural"):
+        nn = mlp_sw["neural"]
+        parts.append(p_xml(
+            "On the shared neural cohort, MLP decode accuracy from scalar neural prior readouts is lower and "
+            "more variable across ROIs (leave-one-session-out). Window means are highest in MOs "
+            f"({nn.get('MOs', {}).get('window', float('nan')):.3f}) and vlOFC "
+            f"({nn.get('vlOFC_orbvl', {}).get('window', float('nan')):.3f}), with MOp "
+            f"({nn.get('MOp', {}).get('window', float('nan')):.3f}) intermediate and ACAd near chance "
+            f"({nn.get('ACAd', {}).get('window', float('nan')):.3f}) — consistent with sparse ACAd coverage."
+        ))
+        rows = []
+        for reg, lab in (
+            ("MOs", "MOs"),
+            ("vlOFC_orbvl", "vlOFC"),
+            ("ACAd", "ACAd"),
+            ("MOp", "MOp"),
+        ):
+            if reg not in nn:
+                continue
+            v = nn[reg]
+            rows.append([
+                lab,
+                f"{v['window']:.3f}",
+                f"{v['pre']:.3f}",
+                f"{v['post']:.3f}",
+                f"{v['at0']:.3f}",
+            ])
+        if rows:
+            parts.append(table_xml(
+                ["Region", "Window mean", "Pre (−15…−1)", "Post (0…15)", "At switch (0)"],
+                rows,
+                title="Table 5. MLP block-decode accuracy from neural prior readouts (shared cohort).",
+                col_fracs=[0.22, 0.20, 0.20, 0.20, 0.18],
+            ))
+    if "rIdFig15" in rid_map:
+        p, w, h, cap = rid_map["rIdFig15"]
+        parts.append(image_xml("rIdFig15", width_in=w, height_in=h, caption=cap))
+
     parts.append(h_xml(1, "Discussion"))
     parts.append(p_xml(
         "Reading the results in question order clarifies the scientific story. On overall and "
@@ -1174,15 +1335,16 @@ def build_article() -> Path:
         "often ahead of — GRU BPTT, including immediately after 0.2↔0.8 switches. On belief amplitude and "
         "switch-centered prior probes (Q2), BPTT models still show stronger history gaps and larger belief "
         "swings. Neural VE (Q3) continues to favor GRU BPTT over tanh BPTT among behavior-matched models, "
-        "with GRU PC intermediate and tanh PC excluded from the ε-ball. Together, these results separate "
-        "“who chooses correctly when the prior changes” from “whose latent belief looks most like a neural "
-        "prior axis.”"
+        "with GRU PC intermediate and tanh PC excluded from the ε-ball. MLP switch-centered block decoding "
+        "reinforces that BPTT latents carry more linearly/nonlinearly readable block identity through the "
+        "switch window than PC latents, while neural prior readouts support above-chance decoding mainly in "
+        "MOs and vlOFC under the current cohort size."
     ))
     parts.append(p_xml(
         "Neural analyses target regions implicated in subjective prior coding by Findling et al. (2025). "
         "Region-level claims scale with the number of sessions that sample each area. Matching mouse "
-        "subjective-prior trajectories around switches (the strictest form of Q2) and switch-centered neural "
-        "dynamics remain explicit next steps."
+        "subjective-prior trajectories around switches (the strictest form of Q2) and richer switch-centered "
+        "neural population geometry remain explicit next steps."
     ))
 
     parts.append(h_xml(1, "References"))

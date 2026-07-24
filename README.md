@@ -27,6 +27,8 @@ Train **only on synthetic** IBL-like sessions; **primary** ranking on held-out s
 
 **Switch-centered correctness (real history-only, trials 0–15 post-switch):** GRU PC leads both 0.2→0.8 (~0.820) and 0.8→0.2 (~0.829); see `comparison/real_history_only_accuracy_to_switch_story.png`.
 
+**MLP switch-block decoding (`scripts/16_…`):** BPTT latents decode 0.2 vs 0.8 block identity best across the −30…+30 window (GRU ~0.913, tanh BPTT ~0.907); PC twins ~0.81. Neural prior readouts: MOs/vlOFC above chance; ACAd near chance. Figure: `figures/switch_block_decoding/mlp_rnn_vs_pc_switch_decoding.png`.
+
 **Reports:** [`reports/v2/CURRENT_STATUS_ARTICLE.docx`](reports/v2/CURRENT_STATUS_ARTICLE.docx), [`reports/v2/METHODS_DETAILED.docx`](reports/v2/METHODS_DETAILED.docx), [`docs/REAL_EVAL.md`](docs/REAL_EVAL.md).
 
 ### Model glossary
