@@ -23,11 +23,13 @@ Train **only on synthetic** IBL-like sessions; **primary** ranking on held-out s
 | tanh BPTT | **0.808** | 0.815 | 0.405 |
 | tanh PC | 0.763 | 0.793 | 0.217 |
 
-**Neural (session-mean VE):** among all models, GRU > tanh BPTT > GRU PC > tanh PC. Behavior-matched ε-ball retains `{gru, gru_pc, tanh_bptt}` (tanh PC excluded). Matched best-vs-second (GRU vs tanh BPTT) **survives Holm** in MOs, vlOFC, and MOp (not ACAd).
+**Neural (session-mean VE):** among all models, GRU > tanh BPTT > GRU PC > tanh PC. Survival (best vs second, session bootstrap + Holm; no behavior-matching filter): survives in MOs, vlOFC, and MOp (not ACAd).
 
 **Switch-centered correctness (real history-only, trials 0–15 post-switch):** GRU PC leads both 0.2→0.8 (~0.820) and 0.8→0.2 (~0.829); see `comparison/real_history_only_accuracy_to_switch_story.png`.
 
-**MLP switch-block decoding (`scripts/16_…`):** BPTT latents decode 0.2 vs 0.8 block identity best across the −30…+30 window (GRU ~0.913, tanh BPTT ~0.907); PC twins ~0.81. Neural prior readouts: MOs/vlOFC above chance; ACAd near chance. Figure: `figures/switch_block_decoding/mlp_rnn_vs_pc_switch_decoding.png`.
+**Overall vs peri-switch boards:** `comparison/{synth|real}_{regime}_overall_vs_switch_correctness.png` — per model: overall · 0.2→0.8 (−30…+30) · 0.8→0.2 (−30…+30); Wilcoxon+Holm vs overall; `fixed_prior` = overall only. Model order: tanh BPTT → tanh PC → GRU → GRU PC (twin-complement colors). All figures save at DPI 600.
+
+**MLP switch-block decoding (`scripts/16_…`):** three panels (−30…+30). A1 synth latents: BPTT best (GRU ~0.913, tanh BPTT ~0.907; PC ~0.81). A2 real mouse prior (~0.904) vs model \(q_t\): GRU ~0.921, tanh BPTT ~0.900; PC ~0.78. A3 neural û: MOs/vlOFC above chance; ACAd near chance. Figure: `figures/switch_block_decoding/mlp_rnn_vs_pc_switch_decoding.png`.
 
 **Reports:** [`reports/v2/CURRENT_STATUS_ARTICLE.docx`](reports/v2/CURRENT_STATUS_ARTICLE.docx), [`reports/v2/METHODS_DETAILED.docx`](reports/v2/METHODS_DETAILED.docx), [`docs/REAL_EVAL.md`](docs/REAL_EVAL.md).
 
@@ -82,7 +84,7 @@ Outputs: `artifacts/v2/`, `reports/v2/`.
 | `reports/v2/figures/comparison/synth_vs_real_{regime}_board.png` | Synth vs real transfer |
 | `reports/v2/figures/neural/neural_ve_unmatched_vs_matched.png` | Neural VE by region (MOs, ORBvl, ACAd, MOp) |
 | `reports/v2/figures/neural/survival_tests.png` | Behavior-matched survival (session bootstrap + Holm) |
-| `reports/v2/figures/switch_block_decoding/mlp_rnn_vs_pc_switch_decoding.png` | MLP block decoding around switches: 4 models (latents) vs 4 ROIs (neural belief) |
+| `reports/v2/figures/switch_block_decoding/mlp_rnn_vs_pc_switch_decoding.png` | MLP block decoding around switches: A1 synth latents · A2 mouse prior + model belief · A3 neural û |
 
 Regenerate figures after eval: `python scripts/10_make_figures.py`, `python scripts/15_make_neural_figures.py`, and `python scripts/16_plot_mlp_switch_block_decoding.py`.  
 Regenerate DOCX reports: `python scripts/make_v2_docx_reports.py`.

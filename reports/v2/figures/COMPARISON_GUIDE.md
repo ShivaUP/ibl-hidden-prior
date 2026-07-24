@@ -14,7 +14,13 @@
 - Left: preference after 0.2→0.8 switches.
 - Right: preference after 0.8→0.2 switches.
 
+## Overall vs peri-switch (`comparison/*_overall_vs_switch_correctness.png`)
+- Three bars per model (order: tanh BPTT → tanh PC → GRU → GRU PC): overall, 0.2→0.8 (−30…+30), 0.8→0.2 (−30…+30).
+- Stars: paired Wilcoxon overall vs each switch window, Holm-adjusted within the panel.
+- `fixed_prior`: overall only.
+
 ## Synth vs real boards (`comparison/synth_vs_real_*`)
 - Same metric and regime: synth held-out vs real transfer.
 
 All behavioral scores use **correct stimulus side**, not mouse choice.
+All figures export at **DPI 600** via `save_figure`.

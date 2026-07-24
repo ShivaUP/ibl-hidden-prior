@@ -57,10 +57,9 @@
   ],
   "assert_choice_primary": true,
   "metric_source": "shared cohort real_history_only_*.json CE",
-  "created_utc": "2026-07-24T00:20:27.519295+00:00",
+  "created_utc": "2026-07-24T02:04:50.186399+00:00",
   "notes": [
-    "Choice-primary \u03b5-ball on shared behavior+neural cohort CE.",
-    "RT floor non-binding.",
-    "Neural VE aggregated across the same shared cohort sessions."
+    "LEGACY / ARCHIVE ONLY \u2014 not used for primary neural claims in the current phase.",
+    "Choice-primary \u03b5-ball retained for reproducibility of older analyses."
   ]
 }

@@ -43,6 +43,8 @@ from src.plot.v2_style import (
     apply_style,
     label_above_bars,
     mean_ci95,
+    model_bar_shades,
+    ordered_models,
     pad_ylim_for_labels,
     save_figure,
     session_colors as _session_colors,
@@ -122,6 +124,102 @@ def _session_accuracies(roll) -> np.ndarray:
             continue
         out[s] = float(np.mean(choice[s][v] == side[s][v]))
     return out
+
+
+def _session_switch_window_correctness(
+    roll,
+    direction: str,
+    *,
+    before: int = 30,
+    after: int = 30,
+) -> np.ndarray:
+    """Per-session mean correctness over −before…+after trials for one switch direction.
+
+    Direction: ``low_to_high`` (0.2→0.8) or ``high_to_low`` (0.8→0.2).
+    Sessions without eligible switches of that direction are NaN.
+    """
+    per = switch_centered_correctness_per_session(roll, before=before, after=after)
+    out = np.full(len(per["per_session"]), np.nan, dtype=float)
+    for i, curves in enumerate(per["per_session"]):
+        curve = np.asarray(curves[direction], dtype=float)
+        if np.any(np.isfinite(curve)):
+            out[i] = float(np.nanmean(curve))
+    return out
+
+
+def _wilcoxon_paired(a: np.ndarray, b: np.ndarray) -> dict:
+    """Two-sided Wilcoxon signed-rank on paired finite differences."""
+    from scipy.stats import wilcoxon
+
+    x = np.asarray(a, dtype=float)
+    y = np.asarray(b, dtype=float)
+    mask = np.isfinite(x) & np.isfinite(y)
+    n = int(mask.sum())
+    if n < 5:
+        return {
+            "n_pairs": n,
+            "statistic": float("nan"),
+            "p_value": float("nan"),
+            "note": "fewer than 5 paired sessions",
+        }
+    diff = x[mask] - y[mask]
+    if np.allclose(diff, 0.0):
+        return {
+            "n_pairs": n,
+            "statistic": 0.0,
+            "p_value": 1.0,
+            "note": "all paired differences zero",
+        }
+    try:
+        result = wilcoxon(diff, alternative="two-sided", zero_method="wilcox")
+        return {
+            "n_pairs": n,
+            "statistic": float(result.statistic),
+            "p_value": float(result.pvalue),
+            "note": "",
+        }
+    except ValueError as exc:
+        return {
+            "n_pairs": n,
+            "statistic": float("nan"),
+            "p_value": float("nan"),
+            "note": str(exc),
+        }
+
+
+def _holm_adjust(p_values: list[float]) -> list[float]:
+    """Holm–Bonferroni step-down adjustment; NaNs stay NaN."""
+    p = np.asarray(p_values, dtype=float)
+    out = np.full_like(p, np.nan)
+    finite = np.isfinite(p)
+    if not np.any(finite):
+        return out.tolist()
+    idx = np.flatnonzero(finite)
+    vals = p[idx]
+    order = np.argsort(vals)
+    n = len(vals)
+    running = 0.0
+    adj = np.empty(n, dtype=float)
+    for rank_i, oi in enumerate(order):
+        # smallest p gets multiplier n, next n-1, ...
+        mult = n - rank_i
+        cand = float(vals[oi] * mult)
+        running = max(running, cand)
+        adj[oi] = min(running, 1.0)
+    out[idx] = adj
+    return out.tolist()
+
+
+def _stars(p: float) -> str:
+    if not np.isfinite(p):
+        return ""
+    if p < 0.001:
+        return "***"
+    if p < 0.01:
+        return "**"
+    if p < 0.05:
+        return "*"
+    return "ns"
 
 
 def _session_correctness_at_prior(roll, prior: float) -> np.ndarray:
@@ -617,7 +715,7 @@ def per_model_domain_regime_figure(
 
 def _load_metric_rows(cfg: dict, domain: str, regime: str) -> list[dict]:
     rows = []
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         path = _metrics_path(cfg, domain, regime, mid)
         if path.exists():
             rows.append(json.loads(path.read_text()))
@@ -805,7 +903,11 @@ def _correctness_by_prior_board(cfg: dict, domain: str, regime: str, out: Path) 
     see whether overall correctness is driven by one block type. A dashed marker shows
     the equal-weight mean across available priors (balanced correctness).
     """
-    models = [m for m in cfg["models"] if _rollout_path(cfg, domain, regime, m).exists()]
+    models = [
+        m
+        for m in ordered_models(cfg["models"])
+        if _rollout_path(cfg, domain, regime, m).exists()
+    ]
     if not models:
         return None
     priors = (0.5,) if regime == "fixed_prior" else (0.2, 0.5, 0.8)
@@ -930,7 +1032,7 @@ def _model_switch_board(cfg: dict, domain: str, regime: str, out: Path) -> Path 
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8), constrained_layout=True)
     fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.10, wspace=0.10, hspace=0.10)
     any_curve = False
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         path = _rollout_path(cfg, domain, regime, mid)
         if not path.exists():
             continue
@@ -977,7 +1079,7 @@ def _model_switch_board(cfg: dict, domain: str, regime: str, out: Path) -> Path 
 
 
 def _synth_vs_real_board(cfg: dict, regime: str, out: Path) -> Path | None:
-    models = list(cfg["models"])
+    models = ordered_models(cfg["models"])
     names, synth_acc, real_acc, synth_gap, real_gap = [], [], [], [], []
     synth_acc_e, real_acc_e, synth_gap_e, real_gap_e = [], [], [], []
     for mid in models:
@@ -1098,7 +1200,7 @@ def _history_gap_board(cfg: dict, domain: str, regime: str, out: Path) -> Path |
     if regime == "fixed_prior":
         return None
     models, gaps, errs, colors = [], [], [], []
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         m, e = _gap_ci_from_rollout(cfg, domain, regime, mid)
         if not np.isfinite(m):
             continue
@@ -1124,10 +1226,233 @@ def _history_gap_board(cfg: dict, domain: str, regime: str, out: Path) -> Path |
     return path
 
 
+def _overall_vs_switch_correctness_board(
+    cfg: dict, domain: str, regime: str, out: Path
+) -> Path | None:
+    """Grouped bars: overall vs peri-switch correctness (−30…+30) by direction.
+
+    For ``fixed_prior`` only the overall bar is drawn (no switches).
+    Wilcoxon + Holm stars compare overall vs each switch direction within the panel.
+    """
+    models = ordered_models(cfg["models"])
+    series_keys = (
+        ("overall",)
+        if regime == "fixed_prior"
+        else ("overall", "low_to_high", "high_to_low")
+    )
+    series_labels = {
+        "overall": "overall",
+        "low_to_high": "0.2→0.8 (−30…+30)",
+        "high_to_low": "0.8→0.2 (−30…+30)",
+    }
+
+    per_model: dict[str, dict] = {}
+    for mid in models:
+        path = _rollout_path(cfg, domain, regime, mid)
+        if not path.exists():
+            continue
+        roll = np.load(path)
+        overall = _session_accuracies(roll)
+        entry = {
+            "overall": overall,
+            "low_to_high": np.full_like(overall, np.nan),
+            "high_to_low": np.full_like(overall, np.nan),
+        }
+        if regime != "fixed_prior":
+            entry["low_to_high"] = _session_switch_window_correctness(
+                roll, "low_to_high", before=30, after=30
+            )
+            entry["high_to_low"] = _session_switch_window_correctness(
+                roll, "high_to_low", before=30, after=30
+            )
+        per_model[mid] = entry
+
+    if not per_model:
+        return None
+
+    # Means / CIs for plotting
+    means = {k: [] for k in series_keys}
+    errs = {k: [] for k in series_keys}
+    plot_models = []
+    for mid in models:
+        if mid not in per_model:
+            continue
+        plot_models.append(mid)
+        for key in series_keys:
+            m, e = mean_ci95(per_model[mid][key])
+            means[key].append(m)
+            errs[key].append(e if np.isfinite(e) else 0.0)
+
+    if not plot_models:
+        return None
+
+    # Paired tests: overall vs each switch direction (Holm within panel)
+    tests: list[dict] = []
+    if regime != "fixed_prior":
+        raw_p: list[float] = []
+        test_meta: list[dict] = []
+        for mid in plot_models:
+            for direction in ("low_to_high", "high_to_low"):
+                w = _wilcoxon_paired(
+                    per_model[mid]["overall"], per_model[mid][direction]
+                )
+                meta = {
+                    "model_id": mid,
+                    "contrast": f"overall_vs_{direction}",
+                    **w,
+                }
+                test_meta.append(meta)
+                raw_p.append(w["p_value"])
+        adj = _holm_adjust(raw_p)
+        for meta, p_adj in zip(test_meta, adj):
+            meta["p_holm"] = p_adj
+            meta["stars"] = _stars(p_adj)
+            tests.append(meta)
+
+    n_models = len(plot_models)
+    n_series = len(series_keys)
+    x = np.arange(n_models, dtype=float)
+    width = 0.22 if n_series == 3 else 0.55
+    offsets = (
+        np.linspace(-(n_series - 1) / 2, (n_series - 1) / 2, n_series) * (width + 0.04)
+        if n_series > 1
+        else np.asarray([0.0])
+    )
+
+    fig, ax = plt.subplots(figsize=(10.5 if n_series > 1 else 7.8, 5.2), constrained_layout=True)
+    bar_handles = []
+    all_vals = []
+    all_errs = []
+    for si, key in enumerate(series_keys):
+        colors = [model_bar_shades(mid)[key] for mid in plot_models]
+        bars = ax.bar(
+            x + offsets[si],
+            means[key],
+            width=width,
+            color=colors,
+            yerr=errs[key],
+            capsize=3,
+            ecolor=PASTEL["ink"],
+            label=series_labels[key],
+            zorder=2,
+        )
+        bar_handles.append(bars)
+        all_vals.extend(means[key])
+        all_errs.extend(errs[key])
+        _label_above_bar(ax, bars, means[key], errs[key], pad=0.008)
+
+    # Significance brackets: overall vs each switch bar
+    if regime != "fixed_prior" and tests:
+        y0, y1 = ax.get_ylim() if ax.get_ylim()[1] > ax.get_ylim()[0] else (0.5, 1.0)
+        # provisional headroom; pad_ylim later
+        tops = []
+        for mid_i, mid in enumerate(plot_models):
+            for key in series_keys:
+                m = means[key][mid_i]
+                e = errs[key][mid_i]
+                if np.isfinite(m):
+                    tops.append(m + (e if np.isfinite(e) else 0.0))
+        base_top = max(tops) if tops else 1.0
+        bracket_level = base_top + 0.035
+        for mid_i, mid in enumerate(plot_models):
+            for di, direction in enumerate(("low_to_high", "high_to_low")):
+                meta = next(
+                    (
+                        t
+                        for t in tests
+                        if t["model_id"] == mid
+                        and t["contrast"] == f"overall_vs_{direction}"
+                    ),
+                    None,
+                )
+                if meta is None or not meta.get("stars") or meta["stars"] == "ns":
+                    continue
+                x0 = x[mid_i] + offsets[0]
+                x1 = x[mid_i] + offsets[1 + di]
+                y = bracket_level + di * 0.045
+                ax.plot([x0, x0, x1, x1], [y - 0.008, y, y, y - 0.008], color=PASTEL["ink"], lw=1.0)
+                ax.text(
+                    0.5 * (x0 + x1),
+                    y + 0.004,
+                    meta["stars"],
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                    fontweight="bold",
+                    color=PASTEL["ink"],
+                )
+        all_vals.append(bracket_level + 0.09)
+        all_errs.append(0.0)
+
+    pad_ylim_for_labels(ax, all_vals, all_errs, floor=CORRECTNESS_YLIM[0], headroom=0.10)
+    ax.set_xticks(x)
+    ax.set_xticklabels([_pretty(m) for m in plot_models], rotation=0)
+    style_ylabel(ax, "Correctness vs correct stimulus side")
+    if regime == "fixed_prior":
+        title = (
+            f"Overall correctness — {domain} — {regime}\n"
+            "(mean ± 95% CI; no block switches in this regime)"
+        )
+    else:
+        title = (
+            f"Overall vs peri-switch correctness — {domain} — {regime}\n"
+            "mean ± 95% CI · stars: Wilcoxon overall vs switch (Holm within panel)"
+        )
+    style_axes_title(ax, title)
+    if n_series > 1:
+        ax.legend(
+            frameon=False,
+            fontsize=8,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.18),
+            ncol=3,
+            columnspacing=1.2,
+            handlelength=1.2,
+        )
+    ax.axhline(0.5, color=PASTEL["gray"], lw=1, zorder=1)
+
+    path = out / f"{domain}_{regime}_overall_vs_switch_correctness.png"
+    save_figure(fig, path)
+    plt.close(fig)
+
+    # Persist metrics next to other reports
+    metrics_dir = ROOT / cfg["paths"]["reports"] / "metrics"
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "domain": domain,
+        "regime": regime,
+        "before": 30,
+        "after": 30,
+        "models": {
+            mid: {
+                key: {
+                    "session_values": np.asarray(per_model[mid][key], dtype=float).tolist(),
+                    "mean": float(means[key][plot_models.index(mid)]),
+                    "ci95_half": float(errs[key][plot_models.index(mid)]),
+                }
+                for key in series_keys
+            }
+            for mid in plot_models
+        },
+        "tests": tests,
+    }
+    # Append into aggregate JSON
+    agg_path = metrics_dir / "overall_vs_switch_correctness.json"
+    aggregate = {}
+    if agg_path.exists():
+        try:
+            aggregate = json.loads(agg_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            aggregate = {}
+    aggregate[f"{domain}_{regime}"] = payload
+    agg_path.write_text(json.dumps(aggregate, indent=2), encoding="utf-8")
+    return path
+
+
 def _overall_correctness_board(cfg: dict, domain: str, regime: str, out: Path) -> Path | None:
     """Overall correctness vs correct side with session 95% CI."""
     models, acc, errs, colors = [], [], [], []
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         m, e = _acc_ci_from_rollout(cfg, domain, regime, mid)
         if not np.isfinite(m):
             continue
@@ -1159,7 +1484,7 @@ def _switch_correctness_board(cfg: dict, domain: str, regime: str, out: Path) ->
     fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.9), constrained_layout=True)
     fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.10, wspace=0.10, hspace=0.10)
     any_curve = False
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         path = _rollout_path(cfg, domain, regime, mid)
         if not path.exists():
             continue
@@ -1217,7 +1542,7 @@ def _switch_correctness_summary_board(
     low_hi, low_hi_e = [], []
     hi_lo, hi_lo_e = [], []
     colors = []
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         path = _rollout_path(cfg, domain, regime, mid)
         if not path.exists():
             continue
@@ -1278,7 +1603,7 @@ def _accuracy_switch_story_board(
     ax_h2l = fig.add_subplot(gs[1, 1])
 
     models, acc, errs, colors = [], [], [], []
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         m, e = _acc_ci_from_rollout(cfg, domain, regime, mid)
         if not np.isfinite(m):
             continue
@@ -1299,7 +1624,7 @@ def _accuracy_switch_story_board(
     _label_above_bar(ax_overall, bars, acc, errs, pad=0.010)
 
     any_curve = False
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         path = _rollout_path(cfg, domain, regime, mid)
         if not path.exists():
             continue
@@ -1352,6 +1677,7 @@ def comparison_figures(cfg: dict, fig_root: Path) -> list[Path]:
             for maker in (
                 _model_scorecard,
                 _overall_correctness_board,
+                _overall_vs_switch_correctness_board,
                 _history_gap_board,
                 _model_switch_board,
                 _switch_correctness_board,
@@ -1403,7 +1729,7 @@ def main() -> int:
     fig_root.mkdir(parents=True, exist_ok=True)
     regimes = list(cfg.get("eval", {}).get("regimes", REGIMES))
     made: list[str] = []
-    for mid in cfg["models"]:
+    for mid in ordered_models(cfg["models"]):
         for domain in DOMAINS:
             for regime in regimes:
                 p = per_model_domain_regime_figure(mid, domain, regime, cfg, fig_root)
@@ -1424,6 +1750,10 @@ def main() -> int:
             "scorecards/SCORECARD_GUIDE.md": "How to read scorecards.",
             "comparison/{domain}_{regime}_overall_correctness.png": (
                 "Overall correctness vs correct side; mean ± 95% CI."
+            ),
+            "comparison/{domain}_{regime}_overall_vs_switch_correctness.png": (
+                "Grouped bars: overall vs 0.2→0.8 / 0.8→0.2 peri-switch (−30…+30); "
+                "Wilcoxon+Holm stars; fixed_prior = overall only. DPI 600."
             ),
             "comparison/{domain}_{regime}_history_gap.png": (
                 "History gap (0.8−0.2 zero-evidence belief); mean ± 95% CI."

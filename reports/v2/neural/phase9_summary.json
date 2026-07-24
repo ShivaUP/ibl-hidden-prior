@@ -1,14 +1,8 @@
 {
-  "stage": "neural_matched_full_v2",
-  "created_utc": "2026-07-24T00:20:27.519295+00:00",
-  "matched_models": [
-    "gru",
-    "gru_pc",
-    "tanh_bptt"
-  ],
-  "excluded_models": [
-    "tanh_pc"
-  ],
+  "stage": "neural_survival_all_models_v2",
+  "created_utc": "2026-07-24T02:04:50.186399+00:00",
+  "primary": "all_models_session_bootstrap_survival",
+  "behavior_matching": "parked_legacy_archive_only",
   "ranking": [
     {
       "region": "ACAd",
@@ -30,10 +24,16 @@
           "ve_linear_recal": 0.0195580251896104,
           "corr": 0.13218431192497507,
           "n_sessions": 4
+        },
+        {
+          "model": "tanh_pc",
+          "ve_linear_recal": 0.011685273323676375,
+          "corr": 0.10788556048974697,
+          "n_sessions": 4
         }
       ],
-      "best_matched_model": "gru",
-      "best_matched_ve": 0.034428498046310374
+      "best_model": "gru",
+      "best_ve": 0.034428498046310374
     },
     {
       "region": "MOp",
@@ -55,10 +55,16 @@
           "ve_linear_recal": 0.045674204307890466,
           "corr": 0.19173965771484724,
           "n_sessions": 3
+        },
+        {
+          "model": "tanh_pc",
+          "ve_linear_recal": 0.035069094487602294,
+          "corr": 0.16269257931116302,
+          "n_sessions": 3
         }
       ],
-      "best_matched_model": "gru",
-      "best_matched_ve": 0.12860234363836368
+      "best_model": "gru",
+      "best_ve": 0.12860234363836368
     },
     {
       "region": "MOs",
@@ -80,10 +86,16 @@
           "ve_linear_recal": 0.08850633247786877,
           "corr": 0.2734380306738498,
           "n_sessions": 8
+        },
+        {
+          "model": "tanh_pc",
+          "ve_linear_recal": 0.07293957409980613,
+          "corr": 0.2500813098600423,
+          "n_sessions": 8
         }
       ],
-      "best_matched_model": "gru",
-      "best_matched_ve": 0.20531355564570639
+      "best_model": "gru",
+      "best_ve": 0.20531355564570639
     },
     {
       "region": "vlOFC_orbvl",
@@ -105,16 +117,22 @@
           "ve_linear_recal": 0.0813647162112593,
           "corr": 0.21724648838963767,
           "n_sessions": 5
+        },
+        {
+          "model": "tanh_pc",
+          "ve_linear_recal": 0.07247369936838478,
+          "corr": 0.20205252172495758,
+          "n_sessions": 5
         }
       ],
-      "best_matched_model": "gru",
-      "best_matched_ve": 0.19746444829653503
+      "best_model": "gru",
+      "best_ve": 0.19746444829653503
     }
   ],
   "survival": [
     {
       "region": "ACAd",
-      "test": "matched_best_vs_second_session_bootstrap",
+      "test": "all_models_best_vs_second_session_bootstrap",
       "best_model": "gru",
       "second_model": "tanh_bptt",
       "n": 4,
@@ -129,7 +147,7 @@
     },
     {
       "region": "MOp",
-      "test": "matched_best_vs_second_session_bootstrap",
+      "test": "all_models_best_vs_second_session_bootstrap",
       "best_model": "gru",
       "second_model": "tanh_bptt",
       "n": 3,
@@ -144,7 +162,7 @@
     },
     {
       "region": "MOs",
-      "test": "matched_best_vs_second_session_bootstrap",
+      "test": "all_models_best_vs_second_session_bootstrap",
       "best_model": "gru",
       "second_model": "tanh_bptt",
       "n": 8,
@@ -159,7 +177,7 @@
     },
     {
       "region": "vlOFC_orbvl",
-      "test": "matched_best_vs_second_session_bootstrap",
+      "test": "all_models_best_vs_second_session_bootstrap",
       "best_model": "gru",
       "second_model": "tanh_bptt",
       "n": 5,
@@ -174,5 +192,10 @@
     }
   ],
   "n_ve_rows": 80,
-  "n_sessions": 8
+  "n_sessions": 8,
+  "legacy_matched_models": [
+    "gru",
+    "gru_pc",
+    "tanh_bptt"
+  ]
 }

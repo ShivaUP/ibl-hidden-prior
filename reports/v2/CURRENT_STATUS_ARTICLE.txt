@@ -1,22 +1,27 @@
 GOOGLE DOCS VERSIONS
 ===================
 
-Methods (detailed; fixed-width tables; ROI rationale + paper links):
+Methods (detailed methodology reference):
 
   reports/v2/METHODS_DETAILED.docx
 
-Current status / working manuscript (figures embedded; no pipeline script names):
+Current status (presentation-ready):
 
   reports/v2/CURRENT_STATUS_ARTICLE.docx
 
-Upload either file to Google Drive → Open with → Google Docs.
+Document spine:
+  1. Task summary
+  2. Data size and scope
+  3. Literature review
+  4. Motivation
+  5. Proposed questions
+  6. Shared methods (detailed)
+  Axis Q1 — method → results → answer
+  Axis Q2 — method → results → answer
+  Axis Q3 — method → results → answer
+  7. Cross-question synthesis (talk narrative)
+  8. References
 
-Locked analysis scope (after full rerun):
-  - Shared cohort n=8
-  - Primary ROIs: MOs, ORBvl, ACAd, MOp
-  - History-only real ranking: GRU > tanh BPTT > Bayes > tanh PC
-  - Neural VE same ranking; GRU vs BPTT survives Holm in MOs, vlOFC, MOp
-
-Regenerate after metrics/figures update:
+Regenerate:
 
   python scripts/make_v2_docx_reports.py

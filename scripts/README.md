@@ -20,7 +20,7 @@ All user-facing entrypoints are numbered. Run in order unless a later step’s i
 | 13 | `13_eval_neural_pilot.py` | Full neural VE on shared cohort (all ROIs present per session) |
 | 14 | `14_eval_neural_matched.py` | Behavior-matched VE + session-bootstrap survival (Holm) |
 | 15 | `15_make_neural_figures.py` | Neural VE / survival figures |
-| 16 | `16_plot_mlp_switch_block_decoding.py` | Two-panel MLP switch block decoding (4 models + 4 ROIs) |
+| 16 | `16_plot_mlp_switch_block_decoding.py` | Three-panel MLP switch block decoding (synth latents · real mouse+model belief · neural ROIs) |
 
 ## Typical full run
 

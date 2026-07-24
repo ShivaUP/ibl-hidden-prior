@@ -7,23 +7,28 @@ import numpy as np
 # Publication-quality raster export
 SAVE_DPI = 600
 
-# Darker pastel model palette (still soft, higher chroma than before)
+# Fixed display / ranking order for all v2 figures
+MODEL_ORDER = ("tanh_bptt", "tanh_pc", "gru", "gru_pc")
+
+# Twin-complement pastel palette:
+#   tanh BPTT (blue) ↔ tanh PC (amber)
+#   GRU (rose) ↔ GRU PC (teal)
 MODEL_COLORS = {
-    "tanh_bptt": "#6B9BD2",  # blue
-    "tanh_pc": "#6FAF72",  # green
-    "gru": "#D47A82",  # rose
-    "gru_pc": "#5EAEA6",  # teal
+    "tanh_bptt": "#5B8FD9",  # blue
+    "tanh_pc": "#E39B3A",  # amber (complement of blue)
+    "gru": "#D45C6A",  # rose
+    "gru_pc": "#2FA89A",  # teal (complement of rose)
     "bayes": "#9B7DB8",  # lavender (legacy)
 }
 
 # Darker pastel accents for paired / direction plots
 PASTEL = {
-    "blue": "#6B9BD2",
-    "orange": "#D49A5C",
+    "blue": "#5B8FD9",
+    "orange": "#E39B3A",
     "green": "#6FAF72",
-    "rose": "#D47A82",
+    "rose": "#D45C6A",
     "lavender": "#9B7DB8",
-    "teal": "#5EAEA6",
+    "teal": "#2FA89A",
     "yellow": "#C4B04A",
     "gray": "#B0B0B0",
     "ink": "#3A3A3A",
@@ -47,9 +52,9 @@ SESSION_PASTELS = [
 
 # Block-prior colors for grouped correctness bars
 PRIOR_COLORS = {
-    0.2: "#D49A5C",  # orange — left-biased (P(right)=0.2)
-    0.5: "#5EAEA6",  # teal — unbiased
-    0.8: "#6B9BD2",  # blue — right-biased
+    0.2: "#E39B3A",  # amber — left-biased (P(right)=0.2)
+    0.5: "#2FA89A",  # teal — unbiased
+    0.8: "#5B8FD9",  # blue — right-biased
 }
 
 ACCURACY_YLIM = (0.50, 1.00)
@@ -70,6 +75,44 @@ def session_colors(n: int) -> list:
     if n <= len(SESSION_PASTELS):
         return SESSION_PASTELS[:n]
     return [SESSION_PASTELS[i % len(SESSION_PASTELS)] for i in range(n)]
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[float, float, float]:
+    h = hex_color.lstrip("#")
+    return tuple(int(h[i : i + 2], 16) / 255.0 for i in (0, 2, 4))  # type: ignore[return-value]
+
+
+def _rgb_to_hex(rgb: tuple[float, float, float]) -> str:
+    return "#{:02X}{:02X}{:02X}".format(
+        *[max(0, min(255, int(round(c * 255)))) for c in rgb]
+    )
+
+
+def _mix(hex_color: str, toward: str, amount: float) -> str:
+    a = np.asarray(_hex_to_rgb(hex_color), dtype=float)
+    b = np.asarray(_hex_to_rgb(toward), dtype=float)
+    return _rgb_to_hex(tuple(a * (1.0 - amount) + b * amount))  # type: ignore[arg-type]
+
+
+def model_bar_shades(model_id: str) -> dict[str, str]:
+    """Slight shade variants around the model color for grouped bars.
+
+    overall = darker, low_to_high (0.2→0.8) = base, high_to_low (0.8→0.2) = lighter.
+    """
+    base = MODEL_COLORS.get(model_id, PASTEL["gray"])
+    return {
+        "overall": _mix(base, "#1A1A1A", 0.22),
+        "low_to_high": base,
+        "high_to_low": _mix(base, "#FFFFFF", 0.28),
+    }
+
+
+def ordered_models(model_ids) -> list[str]:
+    """Return active models in canonical order, then any extras."""
+    ids = [str(m) for m in model_ids]
+    primary = [m for m in MODEL_ORDER if m in ids]
+    extras = [m for m in ids if m not in MODEL_ORDER]
+    return primary + extras
 
 
 def mean_sem(values: np.ndarray) -> tuple[float, float]:
@@ -159,13 +202,15 @@ def finalize_figure(fig) -> None:
 
 
 def save_figure(fig, path, *, dpi: int | None = None) -> None:
-    """Save with tight padding so titles/labels are not clipped."""
+    """Save with tight padding so titles/labels are not clipped (publication DPI)."""
     finalize_figure(fig)
     fig.savefig(
         path,
         dpi=dpi or SAVE_DPI,
         bbox_inches="tight",
         pad_inches=SAVE_PAD_INCHES,
+        facecolor=fig.get_facecolor(),
+        edgecolor="none",
     )
 
 

@@ -1,7 +1,7 @@
 [
   {
     "region": "ACAd",
-    "test": "matched_best_vs_second_session_bootstrap",
+    "test": "all_models_best_vs_second_session_bootstrap",
     "best_model": "gru",
     "second_model": "tanh_bptt",
     "n": 4,
@@ -16,7 +16,7 @@
   },
   {
     "region": "MOp",
-    "test": "matched_best_vs_second_session_bootstrap",
+    "test": "all_models_best_vs_second_session_bootstrap",
     "best_model": "gru",
     "second_model": "tanh_bptt",
     "n": 3,
@@ -31,7 +31,7 @@
   },
   {
     "region": "MOs",
-    "test": "matched_best_vs_second_session_bootstrap",
+    "test": "all_models_best_vs_second_session_bootstrap",
     "best_model": "gru",
     "second_model": "tanh_bptt",
     "n": 8,
@@ -46,7 +46,7 @@
   },
   {
     "region": "vlOFC_orbvl",
-    "test": "matched_best_vs_second_session_bootstrap",
+    "test": "all_models_best_vs_second_session_bootstrap",
     "best_model": "gru",
     "second_model": "tanh_bptt",
     "n": 5,

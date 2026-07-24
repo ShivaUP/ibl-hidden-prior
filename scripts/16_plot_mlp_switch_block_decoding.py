@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""16 — Two-panel MLP switch-centered block decoding (models + neural).
+"""16 — Three-panel MLP switch-centered block decoding.
 
-Panel 1 (history-only synth): MLP decodes biased-block identity from each of the
-four active models' zero-current-evidence latent trajectories.
+Panel A1 (history-only synth): MLP on each model's zero-current-evidence latents
+(capacity / latent readability).
 
-Panel 2 (shared neural cohort): MLP decodes biased-block identity from CV Ridge
-OOF neural prior readouts, one curve per primary ROI.
+Panel A2 (real shared cohort): MLP on mouse subjective prior hat{p}_t and each
+model's zero-evidence belief q_t (Q2 three-way scalar probe).
+
+Panel A3 (real shared cohort): MLP on CV Ridge OOF neural prior readouts by ROI.
 
 Window: trials relative to isolated genuine 0.2 <-> 0.8 switches, default -30..+30.
 
@@ -68,7 +70,20 @@ REGION_COLORS = {
     "ACAd": PASTEL["lavender"],
     "MOp": PASTEL["teal"],
 }
+# Real-cohort scalar belief series (mouse + models)
+BELIEF_SERIES = ("mouse",) + MODEL_IDS
+BELIEF_LABELS = {
+    "mouse": "mouse prior",
+    **MODEL_LABELS,
+}
+BELIEF_COLORS = {
+    "mouse": PASTEL["ink"],
+    **MODEL_COLORS,
+}
 SHARED = ROOT / "data" / "manifests" / "shared_behavior_neural_eids.json"
+REAL_HISTORY_ROLLOUT = (
+    ROOT / "artifacts" / "v2" / "real" / "regimes" / "history_only"
+)
 
 
 def _canonical_checkpoint_path(cfg: dict, model_id: str) -> Path:
@@ -607,6 +622,208 @@ def run_model_panel(
     }
 
 
+def _loso_scalar_curves(
+    beliefs: list[np.ndarray],
+    priors: list[np.ndarray],
+    unit_ids: list[str],
+    *,
+    decoder_seeds: list[int],
+    before: int,
+    after: int,
+    settings: DecoderSettings,
+) -> dict[str, dict]:
+    """Leave-one-session-out MLP decode curves keyed by unit_id."""
+
+    if len(unit_ids) < 2:
+        return {}
+    features, p_right, valid = _session_as_batch_arrays(beliefs, priors)
+    features_filled = np.nan_to_num(features, nan=0.0)
+    session_curves: dict[str, dict] = {}
+    n_sess = len(unit_ids)
+    for held_out in range(n_sess):
+        train_sessions = np.asarray(
+            [i for i in range(n_sess) if i != held_out], dtype=int
+        )
+        if len(train_sessions) >= 2:
+            validation_sessions = train_sessions[-1:]
+            train_fit = train_sessions[:-1]
+        else:
+            train_fit = train_sessions
+            validation_sessions = train_sessions
+        test_sessions = np.asarray([held_out], dtype=int)
+        datasets = {
+            "train": _make_decoding_dataset_masked(
+                features_filled, p_right, valid, train_fit
+            ),
+            "validation": _make_decoding_dataset_masked(
+                features_filled, p_right, valid, validation_sessions
+            ),
+            "test": _make_decoding_dataset_masked(
+                features_filled, p_right, valid, test_sessions
+            ),
+        }
+        if len(datasets["train"]["y"]) < 20 or len(datasets["test"]["y"]) < 5:
+            continue
+        decoder_runs = [
+            fit_decoder(
+                "mlp",
+                datasets["train"],
+                datasets["validation"],
+                datasets["test"],
+                seed=int(decoder_seed),
+                settings=settings,
+            )
+            for decoder_seed in decoder_seeds
+        ]
+        mean_probability = np.mean(
+            np.stack([run["probabilities"] for run in decoder_runs], axis=0),
+            axis=0,
+        )
+        n_trials = int(np.sum(np.isfinite(priors[held_out])))
+        expanded_1d = np.full(n_trials, np.nan, dtype=np.float64)
+        for prob, trial in zip(mean_probability, datasets["test"]["trial"]):
+            if 0 <= int(trial) < n_trials:
+                expanded_1d[int(trial)] = float(prob)
+        curve = switch_centered_decoder_accuracy_1d(
+            expanded_1d,
+            priors[held_out][:n_trials],
+            before=before,
+            after=after,
+        )
+        if curve["n_switches"] < 1:
+            continue
+        session_curves[unit_ids[held_out]] = curve
+    return session_curves
+
+
+def _aggregate_from_session_curves(session_curves: dict[str, dict]) -> dict | None:
+    if len(session_curves) >= 2:
+        return _aggregate_curves(session_curves, "balanced_accuracy")
+    if len(session_curves) == 1:
+        only = next(iter(session_curves.values()))
+        return {
+            "offsets": only["offsets"],
+            "mean": only["balanced_accuracy"],
+            "sd": [0.0] * len(only["offsets"]),
+            "n_units": 1,
+            "unit_ids": list(session_curves.keys()),
+        }
+    return None
+
+
+def _load_real_history_beliefs(
+    eids: list[str],
+) -> tuple[dict[str, list[np.ndarray]], list[np.ndarray]]:
+    """Load mouse prior and model zero-evidence beliefs aligned to shared eids."""
+
+    series: dict[str, list[np.ndarray]] = {name: [] for name in BELIEF_SERIES}
+    priors: list[np.ndarray] = []
+    rolls = {}
+    for model_id in MODEL_IDS:
+        path = REAL_HISTORY_ROLLOUT / model_id / "rollout.npz"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Missing real history-only rollout for {model_id}: {path}"
+            )
+        rolls[model_id] = np.load(path)
+
+    n_roll = int(rolls[MODEL_IDS[0]]["belief"].shape[0])
+    if n_roll != len(eids):
+        raise ValueError(
+            f"real rollout session count {n_roll} != shared cohort {len(eids)}"
+        )
+
+    for session_index, eid in enumerate(eids):
+        valid = np.asarray(rolls[MODEL_IDS[0]]["valid"][session_index], dtype=bool)
+        n = int(valid.sum())
+        true_p = np.asarray(
+            rolls[MODEL_IDS[0]]["true_p_right"][session_index, :n],
+            dtype=np.float64,
+        )
+        trials = _load_session_trials(eid)
+        mouse = trials["mouse_prior_hat"].to_numpy(dtype=float)[:n]
+        if len(mouse) != n:
+            raise ValueError(
+                f"{eid}: mouse prior length {len(mouse)} != rollout valid {n}"
+            )
+        series["mouse"].append(mouse)
+        for model_id in MODEL_IDS:
+            belief = np.asarray(
+                rolls[model_id]["belief"][session_index, :n],
+                dtype=np.float64,
+            )
+            if belief.shape[0] != n:
+                raise ValueError(f"{eid}/{model_id}: belief length mismatch")
+            series[model_id].append(belief)
+        priors.append(true_p)
+
+    return series, priors
+
+
+def run_real_belief_panel(
+    *,
+    decoder_seeds: list[int],
+    before: int,
+    after: int,
+    quick: bool,
+) -> dict:
+    """Panel A2: mouse prior + model zero-evidence beliefs on the shared cohort."""
+
+    settings = _settings(quick)
+    eids = _load_shared_eids()
+    if quick:
+        eids = eids[:4]
+
+    series, priors = _load_real_history_beliefs(eids)
+
+    per_series: dict = {}
+    aggregate: dict = {}
+
+    for name in BELIEF_SERIES:
+        beliefs = series[name]
+        print(
+            f"Real belief series {name}: {len(eids)} sessions",
+            flush=True,
+        )
+        session_curves = _loso_scalar_curves(
+            beliefs,
+            priors,
+            eids,
+            decoder_seeds=decoder_seeds,
+            before=before,
+            after=after,
+            settings=settings,
+        )
+        per_series[name] = {
+            "eids": eids,
+            "per_session": session_curves,
+        }
+        agg = _aggregate_from_session_curves(session_curves)
+        if agg is not None:
+            aggregate[name] = agg
+
+    return {
+        "analysis": {
+            "panel": "real_belief",
+            "feature": (
+                "mouse_prior_hat and model zero_evidence_p_right / belief "
+                "(history-only real rollouts)"
+            ),
+            "series": list(BELIEF_SERIES),
+            "before": before,
+            "after": after,
+            "uncertainty": "sample SD across leave-one-session-out held-out sessions",
+            "decoder_initialization_seeds": [int(s) for s in decoder_seeds],
+            "cohort_manifest": str(SHARED.relative_to(ROOT)),
+            "n_cohort_sessions": len(eids),
+            "rollout_root": str(REAL_HISTORY_ROLLOUT.relative_to(ROOT)),
+        },
+        "decoder_settings": settings.__dict__,
+        "per_series": per_series,
+        "aggregate": aggregate,
+    }
+
+
 def run_neural_panel(
     *,
     decoder_seeds: list[int],
@@ -649,81 +866,22 @@ def run_neural_panel(
             }
             continue
 
-        features, p_right, valid = _session_as_batch_arrays(beliefs, priors)
-        features_filled = np.nan_to_num(features, nan=0.0)
-        session_curves = {}
-        n_sess = len(used_eids)
-        for held_out in range(n_sess):
-            train_sessions = np.asarray(
-                [i for i in range(n_sess) if i != held_out], dtype=int
-            )
-            if len(train_sessions) >= 2:
-                validation_sessions = train_sessions[-1:]
-                train_fit = train_sessions[:-1]
-            else:
-                train_fit = train_sessions
-                validation_sessions = train_sessions
-            test_sessions = np.asarray([held_out], dtype=int)
-            datasets = {
-                "train": _make_decoding_dataset_masked(
-                    features_filled, p_right, valid, train_fit
-                ),
-                "validation": _make_decoding_dataset_masked(
-                    features_filled, p_right, valid, validation_sessions
-                ),
-                "test": _make_decoding_dataset_masked(
-                    features_filled, p_right, valid, test_sessions
-                ),
-            }
-            if len(datasets["train"]["y"]) < 20 or len(datasets["test"]["y"]) < 5:
-                continue
-            decoder_runs = [
-                fit_decoder(
-                    "mlp",
-                    datasets["train"],
-                    datasets["validation"],
-                    datasets["test"],
-                    seed=int(decoder_seed),
-                    settings=settings,
-                )
-                for decoder_seed in decoder_seeds
-            ]
-            mean_probability = np.mean(
-                np.stack([run["probabilities"] for run in decoder_runs], axis=0),
-                axis=0,
-            )
-            n_trials = int(np.sum(np.isfinite(priors[held_out])))
-            expanded_1d = np.full(n_trials, np.nan, dtype=np.float64)
-            for prob, trial in zip(mean_probability, datasets["test"]["trial"]):
-                if 0 <= int(trial) < n_trials:
-                    expanded_1d[int(trial)] = float(prob)
-            curve = switch_centered_decoder_accuracy_1d(
-                expanded_1d,
-                priors[held_out][:n_trials],
-                before=before,
-                after=after,
-            )
-            if curve["n_switches"] < 1:
-                continue
-            session_curves[used_eids[held_out]] = curve
-
+        session_curves = _loso_scalar_curves(
+            beliefs,
+            priors,
+            used_eids,
+            decoder_seeds=decoder_seeds,
+            before=before,
+            after=after,
+            settings=settings,
+        )
         per_region[region] = {
             "eids": used_eids,
             "per_session": session_curves,
         }
-        if len(session_curves) >= 2:
-            aggregate[region] = _aggregate_curves(
-                session_curves, "balanced_accuracy"
-            )
-        elif len(session_curves) == 1:
-            only = next(iter(session_curves.values()))
-            aggregate[region] = {
-                "offsets": only["offsets"],
-                "mean": only["balanced_accuracy"],
-                "sd": [0.0] * len(only["offsets"]),
-                "n_units": 1,
-                "unit_ids": list(session_curves.keys()),
-            }
+        agg = _aggregate_from_session_curves(session_curves)
+        if agg is not None:
+            aggregate[region] = agg
 
     return {
         "analysis": {
@@ -743,8 +901,13 @@ def run_neural_panel(
     }
 
 
-def make_two_panel_figure(model_results: dict, neural_results: dict, paths: list[Path]) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.2), constrained_layout=True)
+def make_three_panel_figure(
+    model_results: dict,
+    real_belief_results: dict,
+    neural_results: dict,
+    paths: list[Path],
+) -> None:
+    fig, axes = plt.subplots(1, 3, figsize=(18.5, 5.2), constrained_layout=True)
 
     ax0 = axes[0]
     for model_id in MODEL_IDS:
@@ -762,16 +925,16 @@ def make_two_panel_figure(model_results: dict, neural_results: dict, paths: list
         )
     _decorate_decoder_axis(
         ax0,
-        "Models: MLP on zero-evidence latents (history-only)",
+        "A1 · Synth: MLP on zero-evidence latents",
     )
-    ax0.legend(frameon=False, fontsize=8, loc="lower right")
+    ax0.legend(frameon=False, fontsize=7.5, loc="lower right")
 
     ax1 = axes[1]
     plotted = False
-    for region in NEURAL_REGIONS:
-        if region not in neural_results["aggregate"]:
+    for name in BELIEF_SERIES:
+        if name not in real_belief_results.get("aggregate", {}):
             continue
-        curve = neural_results["aggregate"][region]
+        curve = real_belief_results["aggregate"][name]
         offsets = np.asarray(curve["offsets"])
         mean = 100.0 * np.asarray(curve["mean"])
         sd = 100.0 * np.asarray(curve["sd"])
@@ -780,22 +943,63 @@ def make_two_panel_figure(model_results: dict, neural_results: dict, paths: list
             offsets,
             mean,
             sd,
+            label=BELIEF_LABELS.get(name, name),
+            color=BELIEF_COLORS.get(name, "#444444"),
+        )
+        plotted = True
+    _decorate_decoder_axis(
+        ax1,
+        "A2 · Real: mouse prior + model belief q_t",
+    )
+    if plotted:
+        ax1.legend(frameon=False, fontsize=7.5, loc="lower right")
+    else:
+        ax1.text(
+            0.5,
+            0.5,
+            "No real-belief curves",
+            ha="center",
+            va="center",
+            transform=ax1.transAxes,
+        )
+
+    ax2 = axes[2]
+    plotted = False
+    for region in NEURAL_REGIONS:
+        if region not in neural_results.get("aggregate", {}):
+            continue
+        curve = neural_results["aggregate"][region]
+        offsets = np.asarray(curve["offsets"])
+        mean = 100.0 * np.asarray(curve["mean"])
+        sd = 100.0 * np.asarray(curve["sd"])
+        _plot_mean_sd(
+            ax2,
+            offsets,
+            mean,
+            sd,
             label=REGION_LABELS.get(region, region),
             color=REGION_COLORS.get(region, "#444444"),
         )
         plotted = True
     _decorate_decoder_axis(
-        ax1,
-        "Neural: MLP on prior belief activity (by ROI)",
+        ax2,
+        "A3 · Real: neural prior readout by ROI",
     )
     if plotted:
-        ax1.legend(frameon=False, fontsize=8, loc="lower right")
+        ax2.legend(frameon=False, fontsize=7.5, loc="lower right")
     else:
-        ax1.text(0.5, 0.5, "No neural curves", ha="center", va="center", transform=ax1.transAxes)
+        ax2.text(
+            0.5,
+            0.5,
+            "No neural curves",
+            ha="center",
+            va="center",
+            transform=ax2.transAxes,
+        )
 
     fig.suptitle(
         "Switch-centered MLP block decoding (−30…+30)\n"
-        "left: mean ±1 model-seed SD · right: mean ±1 session SD",
+        "A1: mean ±1 model-seed SD · A2–A3: mean ±1 session SD (LOSO)",
         fontsize=12,
     )
     for path in paths:
@@ -814,6 +1018,7 @@ def main() -> int:
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--refresh-cache", action="store_true")
     parser.add_argument("--skip-models", action="store_true")
+    parser.add_argument("--skip-real-belief", action="store_true")
     parser.add_argument("--skip-neural", action="store_true")
     args = parser.parse_args()
 
@@ -834,11 +1039,15 @@ def main() -> int:
     )
     report_directory.mkdir(parents=True, exist_ok=True)
     figure_directory.mkdir(parents=True, exist_ok=True)
+    metrics_path = report_directory / "mlp_switch_block_decode_metrics.json"
+    existing = {}
+    if metrics_path.exists() and (
+        args.skip_models or args.skip_real_belief or args.skip_neural
+    ):
+        existing = json.loads(metrics_path.read_text(encoding="utf-8"))
 
     if args.skip_models:
-        model_results = json.loads(
-            (report_directory / "mlp_switch_block_decode_metrics.json").read_text()
-        )["models"]
+        model_results = existing["models"]
     else:
         model_results = run_model_panel(
             cfg,
@@ -851,10 +1060,22 @@ def main() -> int:
             refresh_cache=bool(args.refresh_cache),
         )
 
+    if args.skip_real_belief:
+        if "real_belief" not in existing:
+            raise KeyError(
+                "metrics JSON lacks real_belief; rerun without --skip-real-belief"
+            )
+        real_belief_results = existing["real_belief"]
+    else:
+        real_belief_results = run_real_belief_panel(
+            decoder_seeds=decoder_seeds,
+            before=int(args.before),
+            after=int(args.after),
+            quick=bool(args.quick),
+        )
+
     if args.skip_neural:
-        neural_results = json.loads(
-            (report_directory / "mlp_switch_block_decode_metrics.json").read_text()
-        )["neural"]
+        neural_results = existing["neural"]
     else:
         neural_results = run_neural_panel(
             decoder_seeds=decoder_seeds,
@@ -865,16 +1086,18 @@ def main() -> int:
 
     payload = {
         "models": model_results,
+        "real_belief": real_belief_results,
         "neural": neural_results,
     }
-    metrics_path = report_directory / "mlp_switch_block_decode_metrics.json"
     metrics_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     figure_paths = [
         figure_directory / "mlp_rnn_vs_pc_switch_decoding.png",
         ROOT / "mlp_rnn_vs_pc_switch_decoding.png",
     ]
-    make_two_panel_figure(model_results, neural_results, figure_paths)
+    make_three_panel_figure(
+        model_results, real_belief_results, neural_results, figure_paths
+    )
 
     print(
         json.dumps(

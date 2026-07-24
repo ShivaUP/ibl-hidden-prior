@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""14 — Behavior-matched neural VE + survival on the shared cohort (multi-session).
+"""14 — Neural VE survival on the shared cohort (all models).
 
-Matching uses real history_only CE on the **same** shared cohort (from script 11).
-VE aggregation: session-mean `ve_linear_recal`; survival via session bootstrap.
+Primary analysis: session-mean ``ve_linear_recal`` for all active models; survival =
+session-bootstrap best-vs-second within each region, Holm-corrected across regions.
+
+Legacy behavior-matching (ε-ball) artifacts are still written for archive only and are
+not used in the primary figures or current-phase manuscript claims.
 
 Usage:
   python scripts/14_eval_neural_matched.py
@@ -59,7 +62,6 @@ def _session_bootstrap_advantage(
     """Bootstrap over sessions: mean(VE_best) - mean(VE_second)."""
 
     d = ve_df.loc[ve_df["region"] == region]
-    # pivot eid × model
     wide = d.pivot_table(index="eid", columns="model", values="ve_linear_recal", aggfunc="mean")
     if best not in wide.columns or second not in wide.columns:
         return {"error": "missing model columns", "n": 0}
@@ -92,68 +94,30 @@ def _session_bootstrap_advantage(
     }
 
 
-def main() -> int:
-    stamp = datetime.now(timezone.utc).isoformat()
-    out = ROOT / "reports" / "v2" / "neural"
-    out.mkdir(parents=True, exist_ok=True)
-
-    held = _behavior_metrics_df()
-    if held.empty:
-        print("Missing real_history_only metrics; run scripts/11_eval_regimes.py --domain real", file=sys.stderr)
-        return 1
-
-    match_cfg = MatchConfig(choice_epsilon=0.05, rt_nll_floor=1e9, choice_primary=True)
-    match = select_behavior_matched(held, condition="history_only", cfg=match_cfg)
-    match["metric_source"] = "shared cohort real_history_only_*.json CE"
-    match["created_utc"] = stamp
-    match["notes"] = [
-        "Choice-primary ε-ball on shared behavior+neural cohort CE.",
-        "RT floor non-binding.",
-        "Neural VE aggregated across the same shared cohort sessions.",
-    ]
-    (out / "behavior_matched_models.json").write_text(json.dumps(match, indent=2), encoding="utf-8")
-    print(f"Matched: {match['matched_models']}")
-
-    ve_path = out / "ve_unmatched_full.csv"
-    if not ve_path.exists():
-        ve_path = out / "ve_unmatched.csv"
-    if not ve_path.exists():
-        print("Missing ve_unmatched; run scripts/13_eval_neural_pilot.py", file=sys.stderr)
-        return 1
-    ve_all = pd.read_csv(ve_path)
-    ve_unmatched = ve_all.copy()
-    ve_unmatched["confirmatory"] = False
-    ve_matched = filter_ve_to_matched(ve_all, match["matched_models"])
-    ve_unmatched.to_csv(out / "ve_unmatched.csv", index=False)
-    ve_matched.to_csv(out / "ve_matched.csv", index=False)
-
-    # session-mean for ranking
-    mean_all = (
-        ve_all.groupby(["region", "model"], as_index=False)
-        .agg(ve_linear_recal=("ve_linear_recal", "mean"), corr=("corr", "mean"), n_sessions=("eid", "nunique"))
-    )
-    mean_matched = mean_all[mean_all["model"].isin(match["matched_models"])].copy()
-    mean_matched.to_csv(out / "ve_matched_session_mean.csv", index=False)
-
-    ranking = []
+def _survival_for_models(
+    ve_all: pd.DataFrame, mean_df: pd.DataFrame, *, test_name: str
+) -> tuple[list[dict], list[dict]]:
     survival_rows = []
-    for region, g in mean_matched.groupby("region"):
+    ranking = []
+    for region, g in mean_df.groupby("region"):
         g2 = g.sort_values("ve_linear_recal", ascending=False)
+        models = g2["model"].tolist()
         ranking.append(
             {
                 "region": region,
-                "ranking": g2[["model", "ve_linear_recal", "corr", "n_sessions"]].to_dict(orient="records"),
-                "best_matched_model": str(g2.iloc[0]["model"]) if len(g2) else None,
-                "best_matched_ve": float(g2.iloc[0]["ve_linear_recal"]) if len(g2) else float("nan"),
+                "ranking": g2[["model", "ve_linear_recal", "corr", "n_sessions"]].to_dict(
+                    orient="records"
+                ),
+                "best_model": str(models[0]) if models else None,
+                "best_ve": float(g2.iloc[0]["ve_linear_recal"]) if len(g2) else float("nan"),
             }
         )
-        models = [r["model"] for r in ranking[-1]["ranking"]]
         if len(models) >= 2:
-            res = _session_bootstrap_advantage(ve_matched, region, models[0], models[1])
+            res = _session_bootstrap_advantage(ve_all, region, models[0], models[1])
             survival_rows.append(
                 {
                     "region": region,
-                    "test": "matched_best_vs_second_session_bootstrap",
+                    "test": test_name,
                     "best_model": models[0],
                     "second_model": models[1],
                     **res,
@@ -163,13 +127,17 @@ def main() -> int:
             survival_rows.append(
                 {
                     "region": region,
-                    "test": "single_matched_model",
+                    "test": "single_model",
                     "model": models[0],
                     "ve_obs": float(g2.iloc[0]["ve_linear_recal"]),
                 }
             )
 
-    pvals = [float(r["p_boot"]) for r in survival_rows if "p_boot" in r and np.isfinite(r.get("p_boot", np.nan))]
+    pvals = [
+        float(r["p_boot"])
+        for r in survival_rows
+        if "p_boot" in r and np.isfinite(r.get("p_boot", np.nan))
+    ]
     if pvals:
         adjusted = holm_correct(pvals)
         j = 0
@@ -178,21 +146,88 @@ def main() -> int:
                 row["p_holm"] = float(adjusted[j])
                 row["survive_alpha_05"] = bool(adjusted[j] < 0.05)
                 j += 1
+    return survival_rows, ranking
 
+
+def main() -> int:
+    stamp = datetime.now(timezone.utc).isoformat()
+    out = ROOT / "reports" / "v2" / "neural"
+    out.mkdir(parents=True, exist_ok=True)
+
+    ve_path = out / "ve_unmatched_full.csv"
+    if not ve_path.exists():
+        ve_path = out / "ve_unmatched.csv"
+    if not ve_path.exists():
+        print("Missing ve_unmatched; run scripts/13_eval_neural_pilot.py", file=sys.stderr)
+        return 1
+    ve_all = pd.read_csv(ve_path)
+    ve_all.to_csv(out / "ve_unmatched.csv", index=False)
+
+    mean_all = (
+        ve_all.groupby(["region", "model"], as_index=False)
+        .agg(
+            ve_linear_recal=("ve_linear_recal", "mean"),
+            corr=("corr", "mean"),
+            n_sessions=("eid", "nunique"),
+        )
+    )
+    mean_all.to_csv(out / "ve_session_mean.csv", index=False)
+
+    # Primary: survival among all models (no behavior-matching gate)
+    survival_rows, ranking = _survival_for_models(
+        ve_all, mean_all, test_name="all_models_best_vs_second_session_bootstrap"
+    )
     (out / "survival_tests.json").write_text(json.dumps(survival_rows, indent=2), encoding="utf-8")
     pd.DataFrame(survival_rows).to_csv(out / "survival_tests.csv", index=False)
+
+    # Legacy archive only: ε-ball match artifacts (not used in primary figures/docs)
+    held = _behavior_metrics_df()
+    match: dict = {"matched_models": [], "excluded_models": [], "notes": ["legacy archive only"]}
+    if not held.empty:
+        match_cfg = MatchConfig(choice_epsilon=0.05, rt_nll_floor=1e9, choice_primary=True)
+        match = select_behavior_matched(held, condition="history_only", cfg=match_cfg)
+        match["metric_source"] = "shared cohort real_history_only_*.json CE"
+        match["created_utc"] = stamp
+        match["notes"] = [
+            "LEGACY / ARCHIVE ONLY — not used for primary neural claims in the current phase.",
+            "Choice-primary ε-ball retained for reproducibility of older analyses.",
+        ]
+        ve_matched = filter_ve_to_matched(ve_all, match["matched_models"])
+        ve_matched.to_csv(out / "ve_matched.csv", index=False)
+        mean_matched = mean_all[mean_all["model"].isin(match["matched_models"])].copy()
+        mean_matched.to_csv(out / "ve_matched_session_mean.csv", index=False)
+    (out / "behavior_matched_models.json").write_text(json.dumps(match, indent=2), encoding="utf-8")
+
     summary = {
-        "stage": "neural_matched_full_v2",
+        "stage": "neural_survival_all_models_v2",
         "created_utc": stamp,
-        "matched_models": match["matched_models"],
-        "excluded_models": match["excluded_models"],
+        "primary": "all_models_session_bootstrap_survival",
+        "behavior_matching": "parked_legacy_archive_only",
         "ranking": ranking,
         "survival": survival_rows,
         "n_ve_rows": int(len(ve_all)),
         "n_sessions": int(ve_all["eid"].nunique()) if len(ve_all) else 0,
+        "legacy_matched_models": match.get("matched_models"),
     }
     (out / "phase9_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    print(json.dumps({"matched": match["matched_models"], "n_sessions": summary["n_sessions"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "primary": "all_models_survival",
+                "n_sessions": summary["n_sessions"],
+                "survival": [
+                    {
+                        "region": r.get("region"),
+                        "best": r.get("best_model"),
+                        "second": r.get("second_model"),
+                        "survive": r.get("survive_alpha_05"),
+                    }
+                    for r in survival_rows
+                ],
+            },
+            indent=2,
+        )
+    )
     return 0
 
 
