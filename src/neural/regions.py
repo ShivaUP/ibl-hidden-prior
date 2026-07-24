@@ -42,15 +42,27 @@ CHOICE_REGIONS: dict[str, tuple[str, ...]] = {
     "FOTU": ("FOTU",),
 }
 
+# ---- Project locked ROIs (primary analysis scope) --------------------------
+# Frontal / motor cortical regions. MOs + ORBvl were frozen in v1; ACAd + MOp
+# added as locked ROIs for the shared-cohort analysis. Allen CCF acronyms.
+PRIMARY_ROIS: dict[str, tuple[str, ...]] = {
+    "MOs":   ("MOs",),    # secondary motor
+    "ORBvl": ("ORBvl",),  # ventrolateral orbitofrontal = vlOFC
+    "ACAd":  ("ACAd",),   # anterior cingulate, dorsal
+    "MOp":   ("MOp",),    # primary motor
+}
+
 # Comparison / context regions
 CONTEXT_REGIONS: dict[str, tuple[str, ...]] = {
     "MOs":  ("MOs",),
     "VISp": ("VISp",),
 }
 
+# Primary ROIs first, then secondary subcortical choice regions, then controls.
 ALL_DECODE_REGIONS: dict[str, tuple[str, ...]] = {
+    **PRIMARY_ROIS,
     **CHOICE_REGIONS,
-    **CONTEXT_REGIONS,
+    "VISp": ("VISp",),
 }
 
 

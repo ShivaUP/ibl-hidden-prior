@@ -51,12 +51,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.data.config import load_frozen_config, repo_root
-from src.neural.regions import ALL_DECODE_REGIONS
+from src.neural.regions import ALL_DECODE_REGIONS, PRIMARY_ROIS
 from src.neural.neural_block_decoder import (
     NeuralDecoderConfig,
     aggregate_by_region,
     decode_session,
 )
+import json
 
 ONE_BASE_URL = "https://openalyx.internationalbrainlab.org"
 ONE_PASSWORD = "international"
@@ -119,6 +120,17 @@ def main() -> None:
                     help="Window end rel. stimOn, s (default: 0.0)")
     ap.add_argument("--min-units", type=int, default=5,
                     help="Min units per region per session (default: 5)")
+    ap.add_argument("--all-units", action="store_true",
+                    help="Use all units (skip IBL good-unit QC filter, which is on by default)")
+    ap.add_argument("--pseudo-null", type=int, default=0, metavar="N",
+                    help="Pseudosessions for IBL-style significance test (0 = off; e.g. 200)")
+    ap.add_argument("--cohort", nargs="?", const="data/manifests/roi_cohort_v2.json",
+                    default=None, metavar="PATH",
+                    help="Use the frozen curated ROI cohort (default path if flag given "
+                         "with no value); restricts to the 4 locked ROIs")
+    ap.add_argument("--min-sessions", type=int, default=3, metavar="N",
+                    help="Only plot regions with >= N sessions (default: 3; use 1 to "
+                         "keep all, including single-session regions)")
     ap.add_argument("--load-existing", action="store_true",
                     help="Skip download; replot from saved CSV")
     args = ap.parse_args()
@@ -134,7 +146,7 @@ def main() -> None:
             print(f"No existing results at {csv_path}")
             sys.exit(1)
         session_df = pd.read_csv(csv_path)
-        _finalize(session_df, out_dir, agg_path, model_json)
+        _finalize(session_df, out_dir, agg_path, model_json, min_sessions=args.min_sessions)
         return
 
     cfg = load_frozen_config()
@@ -144,13 +156,29 @@ def main() -> None:
     from iblatlas.regions import BrainRegions
     brain_regions = BrainRegions()
 
-    dcfg = NeuralDecoderConfig(t_start=args.t_start, t_end=args.t_end, min_units=args.min_units)
-    regions = args.regions or list(ALL_DECODE_REGIONS.keys())
+    dcfg = NeuralDecoderConfig(t_start=args.t_start, t_end=args.t_end, min_units=args.min_units,
+                               good_only=not args.all_units, n_pseudo=args.pseudo_null)
+
+    # Cohort mode: use the frozen curated ROI cohort + the 4 locked ROIs.
+    if args.cohort:
+        cohort_path = ROOT / args.cohort if not Path(args.cohort).is_absolute() else Path(args.cohort)
+        manifest = json.loads(cohort_path.read_text())
+        eids = manifest["curated"]["eids"] or manifest["cohort_union_eids"]
+        default_regions = list(PRIMARY_ROIS.keys())
+        print(f"Cohort: {cohort_path.relative_to(ROOT)} — {len(eids)} sessions, ROIs={default_regions}")
+    else:
+        eids = None
+        default_regions = list(ALL_DECODE_REGIONS.keys())
+
+    regions = args.regions or default_regions
     print("\n=== Neural block-prior decoder ===")
     print(f"Regions: {regions}")
-    print(f"Window: [{dcfg.t_start:.2f}, {dcfg.t_end:.2f}] s rel. stimOn\n")
+    print(f"Window: [{dcfg.t_start:.2f}, {dcfg.t_end:.2f}] s rel. stimOn")
+    print(f"Good-unit QC: {'ON' if dcfg.good_only else 'OFF (all units)'}"
+          f"{f'  |  pseudosession null: {dcfg.n_pseudo}' if dcfg.n_pseudo else ''}\n")
 
-    eids = find_sessions(one, regions, args.max_sessions)
+    if eids is None:
+        eids = find_sessions(one, regions, args.max_sessions)
     if not eids:
         print("No sessions found.")
         sys.exit(1)
@@ -170,16 +198,26 @@ def main() -> None:
     session_df = pd.DataFrame(all_rows)
     session_df.to_csv(csv_path, index=False)
     print(f"\nSession x region results: {csv_path.relative_to(ROOT)}")
-    _finalize(session_df, out_dir, agg_path, model_json)
+    _finalize(session_df, out_dir, agg_path, model_json, min_sessions=args.min_sessions)
 
 
-def _finalize(session_df: pd.DataFrame, out_dir: Path, agg_path: Path, model_json: Path) -> None:
+def _finalize(session_df: pd.DataFrame, out_dir: Path, agg_path: Path, model_json: Path,
+              *, min_sessions: int = 1) -> None:
     agg = aggregate_by_region(session_df.to_dict("records"))
-    agg.to_csv(agg_path, index=False)
+    agg.to_csv(agg_path, index=False)  # full table always saved unfiltered
 
-    print("\n--- Region AUROC ranking ---")
-    print(agg[["region", "n_sessions", "auroc_mean", "auroc_sem", "units_mean"]]
-          .to_string(index=False))
+    if min_sessions > 1:
+        dropped = agg.loc[agg["n_sessions"] < min_sessions, "region"].tolist()
+        agg = agg[agg["n_sessions"] >= min_sessions].reset_index(drop=True)
+        session_df = session_df[session_df["region"].isin(agg["region"])]
+        if dropped:
+            print(f"\n(dropping regions with < {min_sessions} sessions: {dropped})")
+
+    print("\n--- Region ranking (AUROC block decode + VE prior readout) ---")
+    cols = ["region", "n_sessions", "auroc_mean", "auroc_sem", "units_mean"]
+    if "ve_mean" in agg.columns:
+        cols[4:4] = ["ve_mean", "ve_sem"]
+    print(agg[cols].to_string(index=False))
 
     from src.plot.phase10_figures import (
         fig_neural_block_decoder,

@@ -239,6 +239,41 @@ def fit_block_decoder(
     return result
 
 
+def oof_block_predictions(
+    features: np.ndarray,
+    labels: np.ndarray,
+    *,
+    n_folds: int = 5,
+    C: float = 1.0,
+    random_state: int = 42,
+) -> np.ndarray:
+    """Out-of-fold P(right-block) for each sample via stratified K-fold LR.
+
+    Parameters
+    ----------
+    features : (n_samples, n_features)
+    labels   : (n_samples,) binary block labels (0 = left block, 1 = right block)
+
+    Returns
+    -------
+    oof : (n_samples,) cross-validated P(class == 1). Each sample is predicted
+          by a model that never saw it during training.
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import StratifiedKFold
+    from sklearn.preprocessing import StandardScaler
+
+    labels = np.asarray(labels)
+    oof = np.full(len(labels), np.nan, dtype=np.float64)
+    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=random_state)
+    for train_idx, test_idx in skf.split(features, labels):
+        scaler = StandardScaler().fit(features[train_idx])
+        clf = LogisticRegression(C=C, max_iter=1000, random_state=random_state)
+        clf.fit(scaler.transform(features[train_idx]), labels[train_idx])
+        oof[test_idx] = clf.predict_proba(scaler.transform(features[test_idx]))[:, 1]
+    return oof
+
+
 # ---------------------------------------------------------------------------
 # Top-level: decode all models
 # ---------------------------------------------------------------------------
