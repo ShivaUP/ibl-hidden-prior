@@ -25,7 +25,7 @@ if str(ROOT) not in sys.path:
 from src.neural.behavior_match import MatchConfig, filter_ve_to_matched, select_behavior_matched
 from src.neural.survival import holm_correct
 
-MODELS = ("tanh_bptt", "tanh_pc", "gru", "bayes")
+MODELS = ("tanh_bptt", "tanh_pc", "gru", "gru_pc")
 
 
 def _behavior_metrics_df() -> pd.DataFrame:

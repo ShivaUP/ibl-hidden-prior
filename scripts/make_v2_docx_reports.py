@@ -32,7 +32,7 @@ def _load_metrics():
     rows = []
     for domain in ("synth", "real"):
         for regime in ("history_only", "full_information", "fixed_prior"):
-            for mid in ("tanh_bptt", "tanh_pc", "gru", "bayes"):
+            for mid in ("tanh_bptt", "tanh_pc", "gru", "gru_pc"):
                 p = ROOT / "reports" / "v2" / "metrics" / f"{domain}_{regime}_{mid}.json"
                 if not p.exists():
                     continue
@@ -56,7 +56,7 @@ def _load_metrics():
 
 def _per_prior_real_history():
     out = {}
-    for mid in ("tanh_bptt", "tanh_pc", "gru", "bayes"):
+    for mid in ("tanh_bptt", "tanh_pc", "gru", "gru_pc"):
         path = ROOT / "artifacts" / "v2" / "real" / "regimes" / "history_only" / mid / "rollout.npz"
         if not path.exists():
             continue
@@ -103,6 +103,7 @@ def _pretty(mid: str) -> str:
         "tanh_bptt": "tanh BPTT",
         "tanh_pc": "tanh PC",
         "gru": "GRU",
+        "gru_pc": "GRU PC",
         "bayes": "Bayes",
     }.get(mid, mid)
 
@@ -252,9 +253,11 @@ def image_xml(rid: str, *, width_in: float = 6.2, height_in: float = 3.5, captio
 def write_docx(path: Path, body_xml: str, *, images: list[tuple[str, Path]] | None = None) -> None:
     """images: list of (rId, png_path)."""
     images = images or []
+    # Unique media names (many figures share basename multipanel_diagnostics.png).
+    media_names = {rid: f"{rid}{png.suffix.lower() or '.png'}" for rid, png in images}
     rels_img = "".join(
-        f'<Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/{png.name}"/>'
-        for rid, png in images
+        f'<Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/{media_names[rid]}"/>'
+        for rid, _png in images
     )
     document_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="{W}" xmlns:r="{R}">
@@ -310,7 +313,7 @@ def write_docx(path: Path, body_xml: str, *, images: list[tuple[str, Path]] | No
         z.writestr("word/_rels/document.xml.rels", word_rels)
         z.writestr("word/styles.xml", styles)
         for rid, png in images:
-            z.write(png, f"word/media/{png.name}")
+            z.write(png, f"word/media/{media_names[rid]}")
 
 
 def build_methods() -> Path:
@@ -324,40 +327,120 @@ def build_methods() -> Path:
     parts.append(p_xml(""))
 
     parts.append(h_xml(1, "1. Aim"))
+    parts.append(h_xml(2, "1.1 Scientific question"))
     parts.append(p_xml(
-        "We ask which model class best explains trial-by-trial updating of a hidden block prior in the IBL "
-        "visuospatial decision task: a standard tanh recurrent network trained with backpropagation through time "
-        "(tanh BPTT), an architecturally identical tanh network trained with predictive-coding credit assignment "
-        "(tanh PC), a gated recurrent unit (GRU), or an explicit online Bayesian prior model (Bayes)."
+        "In the International Brain Laboratory (IBL) visuospatial decision task, the probability that the "
+        "stimulus appears on the right versus left changes across blocks, but that block probability is hidden "
+        "from the animal. Mice behave as if they maintain and update a subjective prior over stimulus side. "
+        "We ask which computational model best accounts for that trial-by-trial prior updating."
     ))
+    parts.append(p_xml("Four model classes are compared side by side:"))
+    parts.append(ul_xml([
+        "tanh BPTT — a standard tanh recurrent network trained with backpropagation through time.",
+        "tanh PC — an architecturally identical tanh network, trained with corrected predictive-coding "
+        "credit assignment (local inference + local synaptic updates), not BPTT.",
+        "GRU — a gated recurrent unit trained with BPTT.",
+        "GRU PC — an architecturally identical GRU, trained with gate-aware corrected PC credit assignment.",
+    ]))
+
+    parts.append(h_xml(2, "1.2 Evaluation hierarchy"))
     parts.append(p_xml(
-        "Models are trained only on synthetic IBL-like sessions. Primary ranking uses held-out synthetic data. "
-        "Secondary checks are frozen transfer to real mouse behavior and neural alignment in regions previously "
-        "linked to subjective prior coding."
+        "The project intentionally separates what is learned from where it is tested:"
+    ))
+    parts.append(ul_xml([
+        "Training uses only synthetic IBL-like sessions (never mouse choice as a supervised target).",
+        "Primary ranking uses held-out synthetic sessions from the same generator (fair, matched statistics).",
+        "Secondary check 1: freeze weights and transfer to real mouse sessions (same tick/channel schema).",
+        "Secondary check 2: ask whether model belief aligns with neural prior readouts in prior-linked regions, "
+        "with confirmatory claims restricted to behavior-matched models (§7).",
+    ]))
+    parts.append(p_xml(
+        "This hierarchy matters for interpretation. A model that wins on synthetic held-out has learned the "
+        "generative task. Transfer asks whether that solution generalizes to real mice. Neural alignment asks "
+        "whether the model’s internal belief resembles a behavior-defined neural prior axis — not whether the "
+        "model is the brain."
     ))
 
-    parts.append(h_xml(1, "2. Data and shared cohort"))
+    parts.append(h_xml(2, "1.3 Primary scientific questions"))
     parts.append(p_xml(
-        f"Behavior transfer and neural analyses use the same {n} sessions. Each session passes almost-perfect "
-        "behavior quality control and has Neuropixels spikes in at least one region of interest. Because no single "
-        "insertion covers all regions, sessions are selected so that the union of the cohort covers the full ROI set "
-        "(greedy set cover, preferring multi-region and primary cortical sessions)."
+        "The analyses are organized around three linked questions (behavior first, then neural):"
     ))
+    parts.append(ul_xml([
+        "Q1 — Correctness: Which model best reproduces trial-by-trial correctness (accuracy vs the correct "
+        "stimulus side), both across the full task and in trials surrounding block switches, where online "
+        "updating of the hidden prior is most evident?",
+        "Q2 — Belief updating dynamics: In the history-only condition, does each model’s inferred prior "
+        "(zero-evidence belief) update at a similar rate and with similar asymmetries as expected around "
+        "0.2↔0.8 switches? Which account better captures how fast and how the belief is revised, not just "
+        "steady-state accuracy? (Mouse subjective-prior matching around switches is an explicit follow-up.)",
+        "Q3 — Neural prior alignment: In prior-encoding regions (MOs, vlOFC/ORBvl, and related sites), which "
+        "model’s belief better matches neural prior readouts, including after behavior matching?",
+    ]))
     parts.append(p_xml(
-        f"Regions covered in the locked cohort: {', '.join(covered)}."
+        "Reporting order follows the science: overall correctness → switch-centered correctness "
+        "(0.2→0.8 and 0.8→0.2 separately) → belief / history-gap dynamics → neural VE."
     ))
+
+    parts.append(h_xml(1, "2. Task and data"))
+    parts.append(h_xml(2, "2.1 IBL biased-block task (intuition)"))
+    parts.append(p_xml(
+        "On each trial the mouse views a visual grating on the left or right and reports the side with a "
+        "wheel turn. Contrast (stimulus strength) varies across trials. Across blocks of trials, the "
+        "experimenter sets the probability that the stimulus is on a given side — conventionally described by "
+        "probabilityLeft ∈ {0.2, 0.5, 0.8}, which implies P(stimulus right) ∈ {0.8, 0.5, 0.2}. The animal is "
+        "not told the current block; it must infer the prevailing bias from experience. That inferred bias is "
+        "what we call the latent / subjective prior."
+    ))
+
+    parts.append(h_xml(2, "2.2 Synthetic generator (training and held-out)"))
+    parts.append(p_xml(
+        "Synthetic sessions are not replays of individual mouse sessions. They are drawn from empirical "
+        "distributions fitted on a behavior-quality cohort (block lengths, prior transitions, contrast "
+        "frequencies, session length), then painted into the shared tick schema (§4). This keeps transfer "
+        "meaningful: models must generalize structure, not memorize particular eids."
+    ))
+    parts.append(ul_xml([
+        "Block priors: {0.2, 0.5, 0.8} with an empirical transition matrix (sessions typically start near 0.5).",
+        "Block lengths: empirical PMF clipped to roughly 10–100 trials (median ≈ 45).",
+        "Contrasts: empirical levels {0, 0.0625, 0.125, 0.25, 1.0} with fitted frequencies "
+        "(no 0.5 contrast in the current fit).",
+        "Default synthetic session length ≈ 929 completed trials (median of the fitting cohort).",
+        "Config / stats: configs/synthetic_v2.yaml and data/manifests/synthetic_stats_v2.json.",
+    ]))
+
+    parts.append(h_xml(2, "2.3 Shared real cohort (behavior transfer + neural)"))
+    parts.append(p_xml(
+        f"Behavior transfer and neural analyses use the same locked set of {n} real sessions "
+        f"(manifest: data/manifests/shared_behavior_neural_eids.json). Using one shared cohort prevents "
+        f"the confound of ranking models on one set of mice and testing neural alignment on another."
+    ))
+    parts.append(p_xml("Inclusion and selection logic:"))
+    parts.append(ul_xml([
+        "Each session passes almost-perfect behavior quality control (high fraction of trials surviving "
+        "standard IBL choice/RT rules after RT trimming).",
+        "Each session has Neuropixels spikes in at least one primary region of interest.",
+        "No single insertion covers all ROIs. Sessions are therefore chosen by greedy set cover so that the "
+        "union of the cohort covers the full primary ROI set, preferring sessions that add new ROIs, then "
+        "primary cortical coverage, then multi-ROI count, then behavior QC rank.",
+        f"Regions covered in the locked cohort union: {', '.join(covered)}.",
+    ]))
     parts.append(note_xml(
-        "Per-region neural statistics use only the sessions that contain that region. Sparse regions "
-        "(for example LGd or SCm with one session) are exploratory."
+        "Per-region neural statistics use only the sessions that contain units in that region. A region with "
+        "few sessions is underpowered for survival testing even if the cohort as a whole is locked."
+    ))
+    parts.append(p_xml(
+        "Legacy note: an older behavior-only core list (data/manifests/behavior_core_eids.json) lacks "
+        "Neuropixels insertions and is not used for v2 real+neural claims."
     ))
 
     parts.append(h_xml(1, "3. Regions of interest"))
+    parts.append(h_xml(2, "3.1 Why these regions"))
     parts.append(p_xml(
-        "Region choice follows published IBL analyses of block priors and brain-wide coding. The standardized "
-        "behavior paper establishes that mice use block structure. The brain-wide map paper reports stimulus, "
-        "choice, action, and reward maps and refers prior analyses to its companion. That companion reports "
-        "widespread decoding of a Bayes-optimal subjective prior, including early sensory, motor, and high-level "
-        "cortical sites."
+        "Region choice follows published IBL analyses rather than an ad hoc cortical wishlist. The "
+        "standardized behavior paper establishes that mice use block structure. The brain-wide map paper "
+        "reports stimulus, choice, action, and reward maps and points prior analyses to its companion. That "
+        "companion (Findling et al.) reports widespread decoding of a Bayes-optimal subjective prior, "
+        "including high-level and motor cortical sites that motivate our primary ROI set."
     ))
     parts.append(table_xml(
         ["Paper", "Link", "Role"],
@@ -381,6 +464,8 @@ def build_methods() -> Path:
         title="Source papers",
         col_fracs=[0.28, 0.42, 0.30],
     ))
+
+    parts.append(h_xml(2, "3.2 Primary analysis scope (locked)"))
     parts.append(table_xml(
         ["Region", "Allen", "Tier", "Why included"],
         [
@@ -389,52 +474,213 @@ def build_methods() -> Path:
             ["Dorsal ACC", "ACAd", "Primary cortex", "Named high-level cortical prior site"],
             ["Primary motor", "MOp", "Motor", "Motor partner of MOs"],
         ],
-        title="Primary regions of interest (analysis scope)",
+        title="Primary regions of interest",
         col_fracs=[0.26, 0.12, 0.18, 0.44],
     ))
-    parts.append(note_xml(
-        "Optional deferred ROIs (not in the current analysis loop): CP, VISp, LGd, SCm, GRN, ORBm, PL, ILA. "
-        "Findling et al. also report embodied priors (posture / eye position); early sensory sites are especially "
-        "control-sensitive and are deferred for that reason."
+    parts.append(p_xml(
+        "In code, ORBvl is named vlOFC_orbvl; figures and tables use the Allen acronym ORBvl or the label "
+        "vlOFC interchangeably for readability."
     ))
 
-    parts.append(h_xml(1, "4. Trial encoding"))
+    parts.append(h_xml(2, "3.3 Deferred / optional ROIs"))
     parts.append(p_xml(
-        "Each trial is mapped to 100 ms ticks with shared channels: visual right and left (side × contrast "
-        "magnitude), go cue, action left and right, rewarded, and not rewarded. Synthetic phase durations follow "
-        "empirical event-time statistics. Real sessions use the same schema without sensory noise."
+        "A broader Findling-inspired list (CP, VISp, LGd, SCm, GRN, ORBm, PL, ILA) is documented but not in "
+        "the current analysis loop. Early sensory sites are especially sensitive to embodied priors "
+        "(posture / eye position) that we have not yet controlled for; expanding there without those "
+        "controls would invite false positives. Deferral is a design choice, not a claim that those "
+        "regions lack prior information."
     ))
+
+    parts.append(h_xml(1, "4. Trial encoding and evaluation regimes"))
+    parts.append(h_xml(2, "4.1 Shared tick-and-channel interface"))
     parts.append(p_xml(
-        "Three evaluation regimes are used. History-only is primary: the model must infer the block prior from "
-        "experience. Full-information adds an evaluation-time oracle bias from the true block log-odds. "
-        "Fixed-prior restricts analysis to unbiased blocks (P(right) ≈ 0.5)."
+        "All models see the same discrete-time interface. Continuous trial events are binned into 100 ms "
+        "ticks. Phase order follows a causal within-trial schedule (baseline → stimulus → go → response → "
+        "feedback); phase durations are integer ticks fitted from empirical IBL event-time medians, not a "
+        "toy fixed schedule. Loss / choice readout occurs only on the response tick."
     ))
+    parts.append(p_xml("Current frozen phase layout (9 ticks per trial):"))
+    parts.append(ul_xml([
+        "Ticks 0–1: baseline (all channels 0; recurrent state carries cross-trial history).",
+        "Tick 2: stimulus onset and go cue in the same bin (empirical go−stim median ≈ 16 ms → 0 ticks).",
+        "Ticks 3–5: stimulus held; go off.",
+        "Tick 6: response / readout (visual off on this tick by convention; supervised target = correct side).",
+        "Ticks 7–8: feedback (action and reward channels).",
+    ]))
+    parts.append(p_xml("Seven input channels (fixed order):"))
+    parts.append(ul_xml([
+        "visual_right, visual_left — continuous contrast magnitude on the corresponding side (else 0).",
+        "go_cue — binary, on only at the go tick.",
+        "action_left, action_right — binary feedback of the executed/teacher action.",
+        "rewarded, not_rewarded — binary outcome (exactly one on during feedback).",
+    ]))
+    parts.append(p_xml(
+        "Sensory coding: right stimulus of contrast c → (visual_right, visual_left) = (c, 0); left → (0, c). "
+        "Synthetic training may add Gaussian noise to the two visual channels "
+        "(sensory_noise_std_synth = 0.15). Real transfer turns that noise off."
+    ))
+
+    parts.append(h_xml(2, "4.2 What differs between synthetic training, synthetic eval, and real transfer"))
+    parts.append(ul_xml([
+        "Synthetic train: teacher-forced action/reward on feedback ticks, with a configurable action-error "
+        "rate (training_feedback_error_rate = 0.2) so the model sees occasional incorrect feedback.",
+        "Synthetic held-out eval: closed-loop — the model’s own sampled/chosen action determines feedback.",
+        "Real transfer: frozen weights; ALF trials mapped into the same schema; feedback ticks use the "
+        "mouse’s actual action and reward as history inputs only. The supervised / scored target remains "
+        "the correct stimulus side, never the mouse’s choice.",
+    ]))
+    parts.append(p_xml(
+        "This last point is easy to miss. Scoring against correct side asks whether the model solves the "
+        "task. Using mouse action/reward as inputs lets the model’s recurrent state track the same history "
+        "stream the mouse experienced, which is required for fair prior-updating comparisons on real data."
+    ))
+
+    parts.append(h_xml(2, "4.3 Evaluation regimes"))
+    parts.append(p_xml(
+        "Three regimes probe different computational demands. All use the same trained weights; only "
+        "evaluation-time inputs or trial subsets change."
+    ))
+    parts.append(ul_xml([
+        "history_only (primary): closed-loop (or mouse-history on real); no oracle block information. "
+        "The model must infer the prior from experience. This is the main ranking regime.",
+        "full_information (control): same dynamics, but at evaluation an additive logit bias from the true "
+        "block log-odds is injected (fi_oracle_logit_gain). This asks whether a model can use prior "
+        "information when it is provided, even if it fails to infer it from history alone "
+        "(informative for tanh PC in particular).",
+        "fixed_prior: evaluate only on unbiased blocks (true P(right) ≈ 0.5), removing block-bias demands.",
+    ]))
 
     parts.append(h_xml(1, "5. Models and training"))
+    parts.append(h_xml(2, "5.1 Common interface and fairness rules"))
+    parts.append(p_xml(
+        "Fair comparison requires holding fixed what can be held fixed, and documenting intentional "
+        "differences:"
+    ))
+    parts.append(ul_xml([
+        "Shared: input channels, phase ticks, synthetic generator, choice objective (correct stimulus side), "
+        "and (for RNNs) default hidden size 48 with session-contiguous state.",
+        "Intentional difference within architecture pairs: identical test-time tanh (or GRU) dynamics; "
+        "BPTT versus corrected predictive-coding credit assignment at train time.",
+        "Both PC models share the corrected inference recipe (32 rounds, output precision 0.025, "
+        "nudge-normalized updates, 929 trials/session). GRU PC is gate-aware.",
+        "No mouse fine-tuning in v2. No reaction-time primary loss in v2 ranking. Explicit Bayes is legacy "
+        "only (not in the active four-model set).",
+    ]))
+
+    parts.append(h_xml(2, "5.2 Model definitions"))
     parts.append(table_xml(
         ["Model", "Test-time computation", "Training"],
         [
-            ["tanh BPTT", "Vanilla tanh RNN", "Backpropagation through time"],
-            ["tanh PC", "Identical tanh RNN", "Predictive-coding credit assignment"],
-            ["GRU", "Gated recurrent unit", "Backpropagation through time"],
-            ["Bayes", "Explicit online prior + stimulus readout", "Likelihood / parameter gradients"],
+            ["tanh BPTT", "Vanilla tanh RNN over ticks", "Backpropagation through time"],
+            ["tanh PC", "Identical tanh RNN", "Corrected PC credit assignment"],
+            ["GRU", "Gated recurrent unit over ticks", "Backpropagation through time"],
+            ["GRU PC", "Identical GRU", "Gate-aware corrected PC credit assignment"],
         ],
         col_fracs=[0.18, 0.40, 0.42],
     ))
     parts.append(p_xml(
-        "All models share the same input channels and are scored against the correct stimulus side. Training uses "
-        "synthetic sessions only. Weights are frozen for real transfer. On real rollouts, mouse actions and rewards "
-        "are history inputs; they are never the training target."
+        "Naming caution: tanh PC / GRU PC mean credit-assignment training of the corresponding cell. "
+        "They are not v1 prediction-error dynamics cells. At test time, each PC model shares its BPTT "
+        "twin’s computational graph; only the learned weights differ. Bayes is legacy and not in the "
+        "active comparison."
+    ))
+    parts.append(p_xml(
+        "PC inference (both cells): free activities are iteratively optimized under a prediction-error "
+        "energy with a weak output nudge (precision 0.025). Synchronous rounds (32) are long enough for "
+        "the response nudge to reach the previous trial’s feedback window. Local weight updates use "
+        "presynaptic activity × postsynaptic prediction error and are divided by the nudge magnitude so "
+        "changing precision does not silently rescale the synaptic learning rate. GRU PC applies the same "
+        "recipe through the full gate Jacobian (z, r, candidate)."
+    ))
+
+    parts.append(h_xml(2, "5.3 Training protocol"))
+    parts.append(ul_xml([
+        "Optimizer / loop: NumPy implementations with Adam; truncated BPTT (or PC chunks) over sessions "
+        "while keeping empirical phase ticks.",
+        "Default exposure (all active models): 60 epochs × 24 sessions/epoch × ≈929 trials/session, in "
+        "chunks of 32 trials (bptt_trials).",
+        "Corrected PC (tanh_pc and gru_pc): same 929-trial sessions as BPTT models. Training uses "
+        "iterative predictive-coding inference (32 rounds; minimum 9 to reach previous-trial feedback), "
+        "weak output precision 0.025 during inference, and nudge-normalized local synaptic updates. "
+        "Between chunks, only the pre-update forward state is carried (never the label-nudged inferred "
+        "state). gru_pc uses gate-aware prediction errors through the full GRU step.",
+        "Checkpoints live under artifacts/v2/models/{model_id}/; real and regime evals load frozen weights.",
+    ]))
+
+    parts.append(h_xml(2, "5.4 Belief extraction (used in metrics and neural analyses)"))
+    parts.append(p_xml(
+        "Behavioral “belief” is not the on-path choice probability under the actual stimulus. The primary "
+        "prior probe is a counterfactual zero-evidence query: from the post-baseline recurrent (or Bayes) "
+        "state, run to the response tick with visual contrast held at zero but go cue on, and read "
+        "P(choose right). That quantity isolates history-dependent bias from immediate sensory evidence. "
+        "History gap and switch-centered curves are built from this probe (§6)."
     ))
 
     parts.append(h_xml(1, "6. Behavioral metrics"))
+    parts.append(h_xml(2, "6.1 What we optimize versus what we report"))
+    parts.append(p_xml(
+        "Training minimizes choice cross-entropy against the correct stimulus side on response ticks. "
+        "Reported scorecards emphasize interpretable summaries of the same objective and of prior updating, "
+        "separately for synthetic held-out and real transfer, and separately by regime."
+    ))
+
+    parts.append(h_xml(2, "6.2 Correctness and balanced correctness"))
     parts.append(ul_xml([
-        "Correctness: fraction of trials where the model choice equals the correct stimulus side.",
-        "Balanced correctness: equal-weight mean of correctness in blocks with P(right) = 0.2, 0.5, and 0.8.",
-        "History gap: mean zero-evidence P(right) in 0.8 blocks minus that in 0.2 blocks. Zero-evidence is a "
-        "counterfactual probe with sensory contrast held at zero.",
-        "Switch-centered curves: zero-evidence belief aligned to block transitions.",
+        "Correctness (accuracy): fraction of evaluated trials where argmax model choice equals the correct "
+        "stimulus side. On real data this is still correct-side scoring, not mouse-choice matching.",
+        "Cross-entropy / choice NLL: mean negative log probability of the correct side under the model’s "
+        "choice distribution; used for ranking and for the neural behavior-matching ε-ball (§7.7).",
+        "Balanced correctness: equal-weight mean of correctness within blocks with true P(right) ∈ "
+        "{0.2, 0.5, 0.8}. This prevents a model that is only good in one block type from dominating an "
+        "unbalanced session mix.",
     ]))
+
+    parts.append(h_xml(2, "6.3 Psychometrics by block prior"))
+    parts.append(p_xml(
+        "For each model and regime we plot P(choose right) against signed contrast, stratified by true "
+        "block P(right). Primary display uses the biased blocks 0.2 and 0.8 (the 0.5 block is reserved for "
+        "the fixed-prior regime and for balanced summaries). A model that updates priors should show "
+        "horizontal shifts of the psychometric: higher P(right) curves in 0.8 blocks than in 0.2 blocks at "
+        "matched contrast."
+    ))
+
+    parts.append(h_xml(2, "6.4 History gap (prior updating summary)"))
+    parts.append(p_xml(
+        "History gap = mean zero-evidence P(right) among trials in true 0.8 blocks minus the same mean in "
+        "true 0.2 blocks. Large positive gaps mean the model’s counterfactual belief tracks block identity. "
+        "Gaps near zero mean little history-dependent bias (typical of a model that relies on sensory "
+        "evidence or an oracle prior rather than inferred history)."
+    ))
+
+    parts.append(h_xml(2, "6.5 Switch-centered adaptation (belief)"))
+    parts.append(p_xml(
+        "Block transitions between biased blocks (0.2→0.8 and 0.8→0.2; 0.5 transitions excluded) are aligned "
+        "at trial 0. Zero-evidence belief is averaged in a window around the switch (approximately −30 to +30 "
+        "trials), separately by switch direction, then summarized as session means with SEM bands across "
+        "sessions. These curves show how quickly belief re-centers after a hidden prior change."
+    ))
+
+    parts.append(h_xml(2, "6.6 Switch-centered correctness (accuracy around updates)"))
+    parts.append(p_xml(
+        "The same switch alignment is applied to trial correctness (1 if model choice equals the correct "
+        "stimulus side, else 0). This answers Q1’s second half: models can have similar overall accuracy yet "
+        "differ where updating is hardest — immediately after a block switch. We report:"
+    ))
+    parts.append(ul_xml([
+        "Full switch-centered correctness curves by direction (mean ± SEM across sessions).",
+        "A post-switch summary: mean correctness on trials 0–15 after the switch, with session-level 95% CIs, "
+        "separately for 0.2→0.8 and 0.8→0.2.",
+        "A story board that places overall correctness above the two switch-direction curves so the narrative "
+        "runs from steady-state ranking to online-updating ranking.",
+    ]))
+
+    parts.append(h_xml(2, "6.7 Example-session diagnostics"))
+    parts.append(p_xml(
+        "Per-model multipanels also show an example session timeline: true block P(right) versus "
+        "zero-evidence belief across trials (and psychometric / switch panels). Prefer sessions that contain "
+        "0.2, 0.5, and 0.8 blocks when available so the timeline illustrates all prior contexts. These "
+        "figures are qualitative checks that the scalar metrics summarize real dynamics."
+    ))
 
     parts.append(h_xml(1, "7. Neural prior comparison"))
     parts.append(p_xml(
@@ -612,14 +858,35 @@ def build_methods() -> Path:
         "coverage uneven across sessions; mouse prior is itself a model of behavior.",
     ]))
 
-    parts.append(h_xml(1, "8. Limitations"))
+    parts.append(h_xml(1, "8. Limitations and open risks"))
+    parts.append(h_xml(2, "8.1 Cohort and coverage"))
     parts.append(ul_xml([
-        "ROI coverage is by cohort union; some regions have few sessions (survival underpowered there).",
+        "ROI coverage is by cohort union; individual sessions typically contribute 1–few regions. Survival "
+        "tests are underpowered where n_sessions is small (e.g. ACAd in the current lock).",
+        "Almost-perfect QC plus ephys requirements yield a small n; results should be read as a locked "
+        "pilot cohort, not a brain-wide census.",
+    ]))
+    parts.append(h_xml(2, "8.2 Modeling and transfer"))
+    parts.append(ul_xml([
+        "Synthetic training approximates empirical statistics but does not replay individual mice "
+        "(intentional; still a distribution shift risk on transfer).",
+        "Teacher-forced training feedback versus mouse feedback on transfer is a known shift (V2-R4).",
+        "tanh PC uses the same session length as BPTT; compute cost is higher due to 32 inference rounds.",
+        "Explicit Bayes is parked (legacy module retained) and is not part of the active ranking.",
+    ]))
+    parts.append(h_xml(2, "8.3 Neural analysis"))
+    parts.append(ul_xml([
         "Embodied-prior controls (video / eye position) are not yet applied.",
-        "The neural window is peri-stimulus; complementary inter-trial decoding is left for later work.",
-        "Synthetic training distribution approximates but does not replay individual mice.",
+        "The neural window is peri-stimulus only; complementary inter-trial decoding is left for later work.",
         "Mouse prior and neural axis are estimated quantities; errors in either reduce neural VE for all "
         "models and can shrink detectable advantages.",
+        "Linear ridge + affine recalibration cannot capture nonlinear neural–belief relationships.",
+    ]))
+    parts.append(h_xml(2, "8.4 Out of v2 scope"))
+    parts.append(ul_xml([
+        "Mouse fine-tuning, reaction-time primary losses, meta-RL, and Bayesian+credit-assignment twins "
+        "are parked.",
+        "Expanded Findling ROIs remain optional until embodied controls and larger coverage exist.",
     ]))
 
     out = ROOT / "reports" / "v2" / "METHODS_DETAILED.docx"
@@ -643,33 +910,43 @@ def build_article() -> Path:
         r = by.get((domain, regime, mid))
         return float("nan") if r is None else r["gap"]
 
-    # Figures to embed (must exist)
+    # Figures to embed (must exist) — ordered to match the scientific story
     fig_specs = [
         ("rIdFig1", FIG / "scorecards" / "synth_history_only_scorecard.png", 6.2, 4.4,
          "Figure 1. Synthetic held-out scorecard (history-only): correctness and history gap."),
-        ("rIdFig2", FIG / "scorecards" / "real_history_only_scorecard.png", 6.2, 4.4,
-         "Figure 2. Real transfer scorecard (history-only) on the shared cohort."),
-        ("rIdFig3", FIG / "comparison" / "real_history_only_correctness_by_prior.png", 6.2, 3.6,
-         "Figure 3. Real history-only correctness by block prior, with balanced correctness."),
-        ("rIdFig4", FIG / "comparison" / "synth_vs_real_history_only_board.png", 6.2, 3.4,
-         "Figure 4. Synthetic versus real transfer under history-only."),
-        ("rIdFig5", FIG / "comparison" / "real_history_only_switch_board.png", 6.2, 3.2,
-         "Figure 5. Switch-centered zero-evidence belief on real sessions (history-only)."),
-        ("rIdFig6", FIG / "scorecards" / "real_full_information_scorecard.png", 6.2, 4.4,
-         "Figure 6. Real full-information control: oracle prior at readout."),
-        ("rIdFig7", FIG / "by_model" / "gru" / "real" / "history_only" / "multipanel_diagnostics.png", 6.2, 4.6,
-         "Figure 7. Example diagnostics for the GRU under real history-only evaluation."),
-        ("rIdFig8", FIG / "neural" / "neural_ve_unmatched_vs_matched.png", 6.2, 3.8,
-         "Figure 8. Neural prior variance explained by model belief (session-mean VE)."),
-        ("rIdFig9", FIG / "neural" / "survival_tests.png", 6.0, 3.2,
-         "Figure 9. Behavior-matched survival of neural advantages across regions."),
+        ("rIdFig2", FIG / "comparison" / "real_history_only_overall_correctness.png", 6.2, 3.6,
+         "Figure 2. Real history-only overall correctness (mean ± 95% CI across sessions)."),
+        ("rIdFig3", FIG / "comparison" / "real_history_only_accuracy_to_switch_story.png", 6.4, 5.4,
+         "Figure 3. Story board: overall correctness, then correctness around 0.2→0.8 and 0.8→0.2 switches."),
+        ("rIdFig4", FIG / "comparison" / "real_history_only_switch_correctness.png", 6.4, 3.4,
+         "Figure 4. Switch-centered correctness curves by direction (mean ± SEM)."),
+        ("rIdFig5", FIG / "comparison" / "real_history_only_switch_correctness_summary.png", 6.4, 3.4,
+         "Figure 5. Post-switch correctness summary (trials 0–15; mean ± 95% CI)."),
+        ("rIdFig6", FIG / "comparison" / "real_history_only_history_gap.png", 6.2, 3.6,
+         "Figure 6. Real history-only history gap (mean ± 95% CI)."),
+        ("rIdFig7", FIG / "comparison" / "real_history_only_switch_board.png", 6.4, 3.4,
+         "Figure 7. Switch-centered zero-evidence belief (prior updating dynamics)."),
+        ("rIdFig8", FIG / "comparison" / "real_history_only_correctness_by_prior.png", 6.2, 3.6,
+         "Figure 8. Correctness by block prior, with balanced correctness."),
+        ("rIdFig9", FIG / "comparison" / "synth_vs_real_history_only_board.png", 6.2, 3.4,
+         "Figure 9. Synthetic versus real transfer under history-only."),
+        ("rIdFig10", FIG / "scorecards" / "real_full_information_scorecard.png", 6.2, 4.4,
+         "Figure 10. Real full-information control: oracle prior at readout."),
+        ("rIdFig11", FIG / "by_model" / "gru_pc" / "real" / "history_only" / "multipanel_diagnostics.png", 6.2, 4.6,
+         "Figure 11. Example diagnostics for GRU PC under real history-only evaluation."),
+        ("rIdFig12", FIG / "by_model" / "gru" / "real" / "history_only" / "multipanel_diagnostics.png", 6.2, 4.6,
+         "Figure 12. Example diagnostics for GRU BPTT under real history-only evaluation."),
+        ("rIdFig13", FIG / "neural" / "neural_ve_unmatched_vs_matched.png", 6.2, 3.8,
+         "Figure 13. Neural prior variance explained by model belief (session-mean VE)."),
+        ("rIdFig14", FIG / "neural" / "survival_tests.png", 6.0, 3.2,
+         "Figure 14. Behavior-matched survival of neural advantages across regions."),
     ]
     images = [(rid, p) for rid, p, *_ in fig_specs if p.exists()]
     rid_map = {rid: (p, w, h, cap) for rid, p, w, h, cap in fig_specs if p.exists()}
 
     parts = []
     parts.append(p_xml(
-        "Comparing recurrent and Bayesian models of latent prior updating "
+        "Comparing BPTT and predictive-coding recurrent models of latent prior updating "
         "in the International Brain Laboratory decision task",
         bold=True, center=True, size=36,
     ))
@@ -680,15 +957,15 @@ def build_article() -> Path:
     parts.append(p_xml(
         f"Mice performing the IBL biased-block task update a hidden prior over stimulus side. We compare four "
         f"models trained only on synthetic IBL-like sessions and evaluated on held-out synthetic data and on "
-        f"{n} real sessions that also support neural analyses. Under history-only evaluation, the GRU achieves "
-        f"the highest correctness on real transfer ({acc('real','history_only','gru'):.3f}) and the strongest "
-        f"history gap, with tanh BPTT close behind. The predictive-coding tanh network is weaker at inferring "
-        f"the prior from history but leads when an oracle prior is provided at readout. Neural alignment is "
-        f"assessed in twelve prior-related regions selected from recent IBL prior-mapping work. "
+        f"{n} real sessions that also support neural analyses: tanh BPTT, corrected tanh PC, GRU BPTT, and "
+        f"gate-aware GRU PC. Under history-only evaluation, GRU PC reaches the highest correctness on real "
+        f"transfer ({acc('real','history_only','gru_pc'):.3f}), with GRU BPTT close behind "
+        f"({acc('real','history_only','gru'):.3f}). BPTT models show larger history gaps than their PC twins. "
+        f"Neural alignment is assessed in four primary prior-related regions (MOs, ORBvl, ACAd, MOp). "
         + (
             "Behavior-matched neural comparisons are reported below."
             if neural
-            else "Neural results for the expanded region set are being finalized on this cohort."
+            else "Neural results for this cohort are being finalized."
         )
     ))
 
@@ -704,11 +981,13 @@ def build_article() -> Path:
         "(Findling et al., Nature 2025; https://www.nature.com/articles/s41586-025-09226-1)."
     ))
     parts.append(p_xml(
-        "We ask which computational account best captures trial-by-trial prior updating: a standard recurrent "
-        "network, a recurrent network trained with predictive-coding credit assignment, a GRU, or an explicit "
-        "online Bayesian observer. Models are matched on inputs and scored against the correct stimulus side. "
-        "Neural comparison asks whether model belief explains neural prior readouts in MOs, ORBvl, ACAd, and MOp "
-        "after models are matched on behavior."
+        "We ask three linked questions. (Q1) Which model best reproduces trial-by-trial correctness both "
+        "overall and around block switches (0.2→0.8 and 0.8→0.2), where online prior updating is most evident? "
+        "(Q2) In history-only evaluation, which model’s zero-evidence belief updates with a rate and "
+        "asymmetry consistent with strong prior use (history gap and switch-centered belief curves)? "
+        "(Q3) In prior-encoding regions (MOs, vlOFC/ORBvl, ACAd, MOp), which model’s belief better matches "
+        "neural prior readouts after behavior matching? Models share inputs and are scored against the "
+        "correct stimulus side."
     ))
 
     parts.append(h_xml(1, "Methods"))
@@ -728,11 +1007,14 @@ def build_article() -> Path:
 
     parts.append(h_xml(2, "Models and evaluation"))
     parts.append(p_xml(
-        "Four models share a common tick-and-channel interface. Training uses synthetic sessions only. "
-        "History-only evaluation is primary. Full-information adds an evaluation-time oracle prior bias. "
-        "Fixed-prior restricts analysis to unbiased blocks. Correctness is the fraction of trials where the "
-        "model choice matches the correct stimulus side. Belief is the counterfactual zero-evidence probability "
-        "of choosing right. History gap is the mean belief difference between 0.8 and 0.2 blocks."
+        "Active models: tanh BPTT, corrected tanh PC, GRU BPTT, and gate-aware GRU PC. Training uses only "
+        "synthetic sessions (60 epochs × 24 sessions × 929 trials for all models). PC credit assignment follows "
+        "the corrected recipe (32 inference rounds, output precision 0.025, nudge-normalized local updates; "
+        "GRU PC is gate-aware). History-only evaluation is primary. Correctness is the fraction of trials "
+        "where the model choice matches the correct stimulus side (session means with 95% CIs). Switch analyses "
+        "align 0.2↔0.8 transitions and report both belief and correctness curves (SEM across sessions) plus "
+        "post-switch (0–15) correctness summaries (95% CI). Belief is the counterfactual zero-evidence "
+        "P(right); history gap is mean belief in 0.8 blocks minus 0.2 blocks. Full methods: METHODS_DETAILED.docx."
     ))
 
     parts.append(h_xml(2, "Neural analysis"))
@@ -740,46 +1022,80 @@ def build_article() -> Path:
         "Neural comparison asks which model’s belief best tracks a one-dimensional neural prior axis in each "
         "region. That axis is built without using any model: peri-stimulus spike counts (−0.1 to 0.3 s from "
         "stimulus onset) are mapped by 5-fold cross-validated ridge regression onto a behavior-derived mouse "
-        "prior (leaky online P(right) fit to choice). Model belief q_t is then scored by linearly recalibrated "
-        "variance explained of the out-of-fold neural axis (ve_linear_recal), averaged across sessions within "
-        "region. Confirmatory claims restrict to models whose shared-cohort history-only choice cross-entropy "
-        "lies within ε = 0.05 of the best model; survival of the matched best-vs-second VE gap is tested by "
-        "session bootstrap (B = 2000) with Holm correction across regions. Full step-by-step detail is in "
-        "METHODS_DETAILED.docx §7."
+        "prior. Model belief is scored by linearly recalibrated variance explained (ve_linear_recal). "
+        "Confirmatory claims use a choice CE ε-ball (ε=0.05) plus session-bootstrap survival with Holm "
+        "correction. Detail: METHODS_DETAILED.docx §7."
     ))
 
     parts.append(h_xml(1, "Results"))
-    parts.append(h_xml(2, "Synthetic held-out ranking"))
+    parts.append(h_xml(2, "Q1a — Overall correctness (full task)"))
     parts.append(p_xml(
-        "On held-out synthetic history-only sessions, tanh BPTT and GRU reach similar correctness "
+        "On held-out synthetic history-only sessions, tanh BPTT and GRU BPTT lead "
         f"({acc('synth','history_only','tanh_bptt'):.3f} and {acc('synth','history_only','gru'):.3f}), "
-        f"with Bayes intermediate ({acc('synth','history_only','bayes'):.3f}) and tanh PC lowest "
-        f"({acc('synth','history_only','tanh_pc'):.3f}). History gaps follow the same order: GRU and tanh BPTT "
-        f"show large block-tuned belief shifts ({gap('synth','history_only','gru'):.3f} and "
-        f"{gap('synth','history_only','tanh_bptt'):.3f}), whereas tanh PC remains near "
-        f"{gap('synth','history_only','tanh_pc'):.3f}."
+        f"ahead of tanh PC ({acc('synth','history_only','tanh_pc'):.3f}) and GRU PC "
+        f"({acc('synth','history_only','gru_pc'):.3f})."
     ))
     if "rIdFig1" in rid_map:
         rid, (p, w, h, cap) = "rIdFig1", rid_map["rIdFig1"]
         parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
 
-    parts.append(h_xml(2, "Real transfer on the shared cohort"))
     parts.append(p_xml(
-        f"Frozen weights transfer to real sessions with the same ranking under history-only: GRU "
-        f"({acc('real','history_only','gru'):.3f}), tanh BPTT ({acc('real','history_only','tanh_bptt'):.3f}), "
-        f"Bayes ({acc('real','history_only','bayes'):.3f}), tanh PC ({acc('real','history_only','tanh_pc'):.3f}). "
-        f"History gaps remain large for GRU and tanh BPTT "
-        f"({gap('real','history_only','gru'):.3f}, {gap('real','history_only','tanh_bptt'):.3f}) and small for "
-        f"tanh PC ({gap('real','history_only','tanh_pc'):.3f})."
+        f"On real transfer (history-only), the ranking changes: GRU PC leads "
+        f"({acc('real','history_only','gru_pc'):.3f}), then GRU BPTT ({acc('real','history_only','gru'):.3f}), "
+        f"tanh BPTT ({acc('real','history_only','tanh_bptt'):.3f}), and tanh PC "
+        f"({acc('real','history_only','tanh_pc'):.3f}). Session-level 95% CIs are shown in Figure 2."
     ))
     if "rIdFig2" in rid_map:
         rid, (p, w, h, cap) = "rIdFig2", rid_map["rIdFig2"]
         parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
 
-    # Per-prior table
+    parts.append(h_xml(2, "Q1b — Correctness around block switches"))
+    parts.append(p_xml(
+        "Overall accuracy can hide differences at the moments when the hidden prior actually changes. "
+        "We therefore re-rank models on correctness aligned to 0.2→0.8 and 0.8→0.2 switches. Figure 3 places "
+        "overall correctness above the two switch-direction curves; Figures 4–5 expand the switch view "
+        "(curves and post-switch 0–15 summaries with CIs)."
+    ))
+    parts.append(p_xml(
+        "On real history-only sessions, GRU PC also leads post-switch correctness in both directions "
+        "(0.2→0.8 ≈ 0.820; 0.8→0.2 ≈ 0.829), with GRU BPTT next (≈ 0.801 / 0.787). This strengthens the "
+        "claim that GRU PC’s real-transfer advantage is not only a steady-state effect."
+    ))
+    for rid in ("rIdFig3", "rIdFig4", "rIdFig5"):
+        if rid in rid_map:
+            p, w, h, cap = rid_map[rid]
+            parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
+
+    parts.append(h_xml(2, "Q2 — Belief updating rate and asymmetries"))
+    parts.append(p_xml(
+        f"History gaps (steady-state prior use) remain larger for BPTT models "
+        f"(GRU {gap('real','history_only','gru'):.3f}, tanh BPTT {gap('real','history_only','tanh_bptt'):.3f}) "
+        f"than for PC twins (tanh PC {gap('real','history_only','tanh_pc'):.3f}, "
+        f"GRU PC {gap('real','history_only','gru_pc'):.3f}). Switch-centered zero-evidence belief curves "
+        "show the same pattern: BPTT models shift belief more strongly after 0.2↔0.8 transitions. "
+        "Thus GRU PC can win on correctness while remaining more conservative in explicit belief amplitude — "
+        "a dissociation between Q1 and Q2."
+    ))
+    for rid in ("rIdFig6", "rIdFig7"):
+        if rid in rid_map:
+            p, w, h, cap = rid_map[rid]
+            parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
+
+    parts.append(h_xml(2, "Supporting behavioral boards"))
+    parts.append(p_xml(
+        "Block-stratified correctness and synth↔real transfer boards confirm that rankings are not driven by "
+        "a single prior level alone. The full-information control asks whether models can use a supplied prior."
+    ))
+    for rid in ("rIdFig8", "rIdFig9", "rIdFig10"):
+        if rid in rid_map:
+            p, w, h, cap = rid_map[rid]
+            parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
+
     if prior:
         rows = []
-        for mid in ("tanh_bptt", "tanh_pc", "gru", "bayes"):
+        for mid in ("tanh_bptt", "tanh_pc", "gru", "gru_pc"):
+            if mid not in prior:
+                continue
             v = prior[mid]
             rows.append([
                 _pretty(mid),
@@ -788,50 +1104,28 @@ def build_article() -> Path:
                 f"{v[0.8]:.3f}",
                 f"{v['balanced']:.3f}",
             ])
-        parts.append(table_xml(
-            ["Model", "P=0.2", "P=0.5", "P=0.8", "Balanced"],
-            rows,
-            title="Table 1. Real history-only correctness by block prior (session means).",
-            col_fracs=[0.28, 0.18, 0.18, 0.18, 0.18],
-        ))
-        parts.append(p_xml(
-            "Balanced correctness confirms that GRU’s lead is not driven by a single block type. "
-            "tanh PC is strong in right-biased blocks but weak in left-biased blocks, lowering its balanced score."
-        ))
-    if "rIdFig3" in rid_map:
-        rid, (p, w, h, cap) = "rIdFig3", rid_map["rIdFig3"]
-        parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
-    if "rIdFig4" in rid_map:
-        rid, (p, w, h, cap) = "rIdFig4", rid_map["rIdFig4"]
-        parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
-    if "rIdFig5" in rid_map:
-        rid, (p, w, h, cap) = "rIdFig5", rid_map["rIdFig5"]
-        parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
+        if rows:
+            parts.append(table_xml(
+                ["Model", "P=0.2", "P=0.5", "P=0.8", "Balanced"],
+                rows,
+                title="Table 1. Real history-only correctness by block prior (session means).",
+                col_fracs=[0.28, 0.18, 0.18, 0.18, 0.18],
+            ))
 
-    parts.append(h_xml(2, "Full-information control"))
-    parts.append(p_xml(
-        "When an oracle prior bias is supplied at readout, tanh PC leads on real sessions "
-        f"({acc('real','full_information','tanh_pc'):.3f}), above GRU ({acc('real','full_information','gru'):.3f}). "
-        "Thus tanh PC can use prior information when it is provided, but is less effective at inferring that "
-        "prior from history alone."
-    ))
-    if "rIdFig6" in rid_map:
-        rid, (p, w, h, cap) = "rIdFig6", rid_map["rIdFig6"]
-        parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
-    if "rIdFig7" in rid_map:
-        rid, (p, w, h, cap) = "rIdFig7", rid_map["rIdFig7"]
-        parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
+    parts.append(h_xml(2, "Example multipanel diagnostics"))
+    for rid in ("rIdFig11", "rIdFig12"):
+        if rid in rid_map:
+            p, w, h, cap = rid_map[rid]
+            parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
 
-    parts.append(h_xml(2, "Neural alignment"))
+    parts.append(h_xml(2, "Q3 — Neural prior alignment"))
     if neural is None:
         parts.append(p_xml(
-            "Neural variance-explained analyses for the twelve-region cohort are in progress on the same "
-            f"{n} sessions used for behavioral transfer. Figures will report session-mean VE by region and "
-            "behavior-matched survival tests."
+            f"Neural variance-explained analyses are in progress on the same {n} sessions used for behavioral "
+            "transfer."
         ))
     else:
         sess = neural["ve_session_mean"]
-        # summarize overall ranking by mean across regions
         if len(sess.columns):
             means = sess.mean(axis=0).sort_values(ascending=False)
             order = ", ".join(f"{_pretty(m)} ({v:.3f})" for m, v in means.items())
@@ -839,8 +1133,7 @@ def build_article() -> Path:
                 f"Across regions with available units, session-mean VE ranks {order}. "
                 f"Behavior-matched models: {', '.join(_pretty(m) for m in neural['matched']) or 'none recorded'}."
             ))
-            # compact table: regions x models
-            cols = [c for c in ("tanh_bptt", "tanh_pc", "gru", "bayes") if c in sess.columns]
+            cols = [c for c in ("tanh_bptt", "tanh_pc", "gru", "gru_pc") if c in sess.columns]
             headers = ["Region"] + [_pretty(c) for c in cols]
             rows = []
             for region in sess.index:
@@ -848,10 +1141,7 @@ def build_article() -> Path:
                     f"{sess.loc[region, c]:.3f}" if pd.notna(sess.loc[region, c]) else "—"
                     for c in cols
                 ])
-            fr = [0.22] + [(0.78 / len(cols))] * len(cols) if cols else [1.0]
-            # fix sum
-            if cols:
-                fr = [0.22] + [0.78 / len(cols)] * len(cols)
+            fr = [0.22] + [0.78 / len(cols)] * len(cols) if cols else [1.0]
             parts.append(table_xml(
                 headers, rows,
                 title="Table 2. Session-mean neural VE (linear recalibration) by region and model.",
@@ -872,25 +1162,27 @@ def build_article() -> Path:
                 title="Table 3. Behavior-matched survival of neural advantages.",
                 col_fracs=[0.34, 0.40, 0.26],
             ))
-    if "rIdFig8" in rid_map:
-        rid, (p, w, h, cap) = "rIdFig8", rid_map["rIdFig8"]
-        parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
-    if "rIdFig9" in rid_map:
-        rid, (p, w, h, cap) = "rIdFig9", rid_map["rIdFig9"]
-        parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
+    for rid in ("rIdFig13", "rIdFig14"):
+        if rid in rid_map:
+            p, w, h, cap = rid_map[rid]
+            parts.append(image_xml(rid, width_in=w, height_in=h, caption=cap))
 
     parts.append(h_xml(1, "Discussion"))
     parts.append(p_xml(
-        "Under the primary history-only regime, gated recurrence (GRU) and standard tanh BPTT best reproduce "
-        "choice correctness and block-tuned belief. Explicit Bayes captures intermediate prior use. Predictive-"
-        "coding credit assignment yields a network that underuses history-inferred priors yet benefits when the "
-        "prior is supplied, separating “can use a prior” from “can learn the prior from experience.”"
+        "Reading the results in question order clarifies the scientific story. On overall and "
+        "switch-centered correctness (Q1), gate-aware GRU PC is competitive with — and on real transfer "
+        "often ahead of — GRU BPTT, including immediately after 0.2↔0.8 switches. On belief amplitude and "
+        "switch-centered prior probes (Q2), BPTT models still show stronger history gaps and larger belief "
+        "swings. Neural VE (Q3) continues to favor GRU BPTT over tanh BPTT among behavior-matched models, "
+        "with GRU PC intermediate and tanh PC excluded from the ε-ball. Together, these results separate "
+        "“who chooses correctly when the prior changes” from “whose latent belief looks most like a neural "
+        "prior axis.”"
     ))
     parts.append(p_xml(
         "Neural analyses target regions implicated in subjective prior coding by Findling et al. (2025). "
-        "Because coverage is distributed across sessions, region-level claims scale with the number of sessions "
-        "that sample each area. Early sensory and hindbrain sites remain especially sensitive to embodied-prior "
-        "confounds and should be interpreted with posture and eye-position controls in follow-up work."
+        "Region-level claims scale with the number of sessions that sample each area. Matching mouse "
+        "subjective-prior trajectories around switches (the strictest form of Q2) and switch-centered neural "
+        "dynamics remain explicit next steps."
     ))
 
     parts.append(h_xml(1, "References"))

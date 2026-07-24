@@ -35,6 +35,7 @@ MODEL_LABELS = {
     "tanh_bptt": "tanh BPTT",
     "tanh_pc": "tanh PC",
     "gru": "GRU",
+    "gru_pc": "GRU PC",
     "bayes": "Bayes",
 }
 
@@ -82,7 +83,7 @@ def main() -> int:
     regions = [r for r in prefer if r in set(uu["region"])] + sorted(
         set(uu["region"]) - set(prefer)
     )
-    models = [x for x in ("tanh_bptt", "tanh_pc", "gru", "bayes") if x in set(uu["model"])]
+    models = [x for x in ("tanh_bptt", "tanh_pc", "gru", "gru_pc") if x in set(uu["model"])]
 
     n_reg = max(len(regions), 1)
     ncols = min(4, n_reg)

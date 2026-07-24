@@ -154,7 +154,9 @@ python scripts/10_make_figures.py
 
 ## 7. PC training note
 
-`tanh_pc` (credit-assignment) is unstable / fails to learn block history when trained on full empirical session length (~929 trials). Config uses **`pc_trials_per_session: 240`** (Kyan-scale) with the same empirical phase ticks and block/contrast stats. BPTT/GRU/Bayes still use 929.
+`tanh_pc` and `gru_pc` use the corrected PC recipe (`PC_V2_CORRECTED.py`): **929** trials/session
+(same as BPTT models), **32** inference rounds, `output_precision=0.025`, nudge-normalized local
+updates, and forward-state carry between chunks. `gru_pc` is gate-aware.
 
 ## 8. Eval regimes (figures)
 

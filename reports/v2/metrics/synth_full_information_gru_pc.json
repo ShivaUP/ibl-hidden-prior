@@ -1,0 +1,27 @@
+{
+  "accuracy": 0.7969927341227125,
+  "cross_entropy": 1.2002432088314983,
+  "domain": "synth",
+  "regime": "full_information",
+  "model_id": "gru_pc",
+  "stage": "synth_regime",
+  "n_sessions": 32,
+  "n_trials": 929,
+  "kyan_diagnostics": {
+    "zero_contrast_observed_choice_probability": {
+      "low_p_right_block": 0.001424388362324769,
+      "high_p_right_block": 0.9991138033853368
+    },
+    "counterfactual_zero_evidence_choice_probability": {
+      "low_p_right_block": 0.0009324459906085546,
+      "high_p_right_block": 0.9994713617436223,
+      "history_gap": 0.9985389157530137
+    },
+    "settled_block_zero_evidence_calibration": {
+      "definition": "trials at least 15 trials after the most recent switch",
+      "low_p_right_block": 0.0008947580134414254,
+      "high_p_right_block": 0.9995126899535273,
+      "mean_absolute_error_to_true_prior": 0.19669536240909788
+    }
+  }
+}

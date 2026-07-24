@@ -10,33 +10,37 @@
 
 Train **only on synthetic** IBL-like sessions; **primary** ranking on held-out synth; **secondary** frozen transfer to real mouse behavior (no mouse fine-tune). Neural VE uses four primary prior-related ROIs (see [`docs/NEURAL_REGIONS.md`](docs/NEURAL_REGIONS.md)).
 
-### Current results snapshot (v2, shared cohort n=8)
+### Current results snapshot (v2, shared cohort n=8; post PC amendment)
 
 **Cohort:** 8 almost-perfect behavior QC sessions with Neuropixels coverage whose **union** spans MOs, ORBvl (vlOFC), ACAd, and MOp. Same sessions for real behavior transfer and neural VE.
 
 **History-only ranking (correctness vs correct stimulus side):**
 
-| Model | Synth held-out | Real transfer | Real history gap | Real balanced correctness |
-|---|---:|---:|---:|---:|
-| GRU | 0.807 | **0.833** | **0.411** | **0.815** |
-| tanh BPTT | **0.808** | 0.815 | 0.405 | 0.793 |
-| Bayes | 0.773 | 0.807 | 0.216 | 0.792 |
-| tanh PC | 0.739 | 0.792 | 0.138 | 0.789 |
+| Model | Synth held-out | Real transfer | Real history gap |
+|---|---:|---:|---:|
+| GRU PC | 0.759 | **0.836** | 0.186 |
+| GRU | 0.807 | 0.833 | **0.411** |
+| tanh BPTT | **0.808** | 0.815 | 0.405 |
+| tanh PC | 0.763 | 0.793 | 0.217 |
 
-**Full-information control (real):** tanh PC leads (0.836) — it can use a supplied prior, but is weak at inferring it from history alone.
+**Neural (session-mean VE):** among all models, GRU > tanh BPTT > GRU PC > tanh PC. Behavior-matched ε-ball retains `{gru, gru_pc, tanh_bptt}` (tanh PC excluded). Matched best-vs-second (GRU vs tanh BPTT) **survives Holm** in MOs, vlOFC, and MOp (not ACAd).
 
-**Neural (session-mean VE of neural prior by model belief):** GRU > tanh BPTT > Bayes > tanh PC in all four regions. After behavior matching, GRU vs tanh BPTT **survives Holm** in MOs, vlOFC, and MOp (not ACAd; fewer sessions).
+**Switch-centered correctness (real history-only, trials 0–15 post-switch):** GRU PC leads both 0.2→0.8 (~0.820) and 0.8→0.2 (~0.829); see `comparison/real_history_only_accuracy_to_switch_story.png`.
 
-**Reports:** [`reports/v2/CURRENT_STATUS_ARTICLE.docx`](reports/v2/CURRENT_STATUS_ARTICLE.docx) (manuscript-style + figures), [`reports/v2/METHODS_DETAILED.docx`](reports/v2/METHODS_DETAILED.docx), [`docs/REAL_EVAL.md`](docs/REAL_EVAL.md).
+**Reports:** [`reports/v2/CURRENT_STATUS_ARTICLE.docx`](reports/v2/CURRENT_STATUS_ARTICLE.docx), [`reports/v2/METHODS_DETAILED.docx`](reports/v2/METHODS_DETAILED.docx), [`docs/REAL_EVAL.md`](docs/REAL_EVAL.md).
 
 ### Model glossary
 
 | ID | Test-time | Training |
 |---|---|---|
 | `tanh_bptt` | Vanilla tanh RNN (Kyan-adapted) | BPTT |
-| `tanh_pc` | **Identical** tanh RNN | Predictive-coding **credit assignment** (not v1 PE-dynamics) |
+| `tanh_pc` | **Identical** tanh RNN | Corrected predictive-coding **credit assignment** (`PC_V2_CORRECTED.py` recipe) |
 | `gru` | GRU (Shrijana-adapted) | BPTT |
-| `bayes` | Explicit online prior + stim readout | Likelihood / BPTT-through-params (**no** Bayes+CA) |
+| `gru_pc` | **Identical** GRU | Gate-aware PC credit assignment (same corrected recipe) |
+
+`bayes` is legacy only (not in the active v2 comparison).
+
+**PC schedule (locked):** 60 epochs × 24 sessions × 929 trials (same exposure as BPTT models); 32 inference rounds; `output_precision=0.025`; nudge-normalized local updates.
 
 ### Numbered runbook
 
@@ -76,15 +80,16 @@ Outputs: `artifacts/v2/`, `reports/v2/`.
 | `reports/v2/figures/comparison/synth_vs_real_{regime}_board.png` | Synth vs real transfer |
 | `reports/v2/figures/neural/neural_ve_unmatched_vs_matched.png` | Neural VE by region (MOs, ORBvl, ACAd, MOp) |
 | `reports/v2/figures/neural/survival_tests.png` | Behavior-matched survival (session bootstrap + Holm) |
+| `reports/v2/figures/switch_block_decoding/mlp_rnn_vs_pc_switch_decoding.png` | MLP block decoding around switches: 4 models (latents) vs 4 ROIs (neural belief) |
 
-Regenerate figures after eval: `python scripts/10_make_figures.py` and `python scripts/15_make_neural_figures.py`.  
+Regenerate figures after eval: `python scripts/10_make_figures.py`, `python scripts/15_make_neural_figures.py`, and `python scripts/16_plot_mlp_switch_block_decoding.py`.  
 Regenerate DOCX reports: `python scripts/make_v2_docx_reports.py`.
 
 ### Directory map (v2)
 
 - `src/synthetic/` — channels, generator, real mapper  
 - `src/models_v2/` — tanh / PC-CA / GRU / Bayes  
-- `scripts/00_`…`10_` — only pipeline entrypoints (see [`scripts/README.md`](scripts/README.md))  
+- `scripts/00_`…`16_` — pipeline entrypoints (see [`scripts/README.md`](scripts/README.md))  
 - v1 train/eval/neural scripts **removed**; historical results stay under `reports/`
 
 ---

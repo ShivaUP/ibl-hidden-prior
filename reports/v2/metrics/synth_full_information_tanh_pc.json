@@ -1,6 +1,6 @@
 {
-  "accuracy": 0.826224434876211,
-  "cross_entropy": 1.059299672554124,
+  "accuracy": 0.7946044133476857,
+  "cross_entropy": 1.1992039183206453,
   "domain": "synth",
   "regime": "full_information",
   "model_id": "tanh_pc",
@@ -9,19 +9,19 @@
   "n_trials": 929,
   "kyan_diagnostics": {
     "zero_contrast_observed_choice_probability": {
-      "low_p_right_block": 0.004322401067998765,
-      "high_p_right_block": 0.9956342523455523
+      "low_p_right_block": 0.002109087244356361,
+      "high_p_right_block": 0.9986752373775868
     },
     "counterfactual_zero_evidence_choice_probability": {
-      "low_p_right_block": 0.0014424441441856606,
-      "high_p_right_block": 0.9989032480243358,
-      "history_gap": 0.9974608038801501
+      "low_p_right_block": 0.0013299829076061595,
+      "high_p_right_block": 0.9991685905629987,
+      "history_gap": 0.9978386076553926
     },
     "settled_block_zero_evidence_calibration": {
       "definition": "trials at least 15 trials after the most recent switch",
-      "low_p_right_block": 0.0013336435316977202,
-      "high_p_right_block": 0.9993402079604873,
-      "mean_absolute_error_to_true_prior": 0.19794673607627897
+      "low_p_right_block": 0.0012952714102422522,
+      "high_p_right_block": 0.9991975754203528,
+      "mean_absolute_error_to_true_prior": 0.19916275970255967
     }
   }
 }

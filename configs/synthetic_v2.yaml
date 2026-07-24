@@ -6,7 +6,8 @@ models:
 - tanh_bptt
 - tanh_pc
 - gru
-- bayes
+- gru_pc
+# bayes: legacy only (not in active v2 comparison)
 hidden_size: 48
 channels:
 - visual_right
@@ -200,18 +201,20 @@ block_transition_probability_left:
     '0.8': 0.0
 trials_per_session_default: 929
 train:
-  # Empirical phase ticks unchanged. Kyan schedule 60×24 for BPTT/GRU/Bayes on full
-  # empirical session length. PC uses shorter sessions (Kyan-scale) — long 929-trial
-  # PC chunks were unstable / failed to learn history gap (see docs / handoff).
+  # Shared schedule for all active models: 60×24×929, chunk 32 trials.
+  # Corrected PC (PC_V2_CORRECTED.py): 32 inference rounds, weak output precision,
+  # nudge-normalized local updates; gate-aware PC for gru_pc.
   epochs: 60
   sessions_per_epoch: 24
   bptt_trials: 32
   learning_rate: 0.002
-  pc_epochs: 60
-  pc_trials_per_session: 240
   pc_synaptic_learning_rate: 0.0004
-  pc_inference_steps: 8
+  pc_inference_steps: 32
   pc_inference_learning_rate: 0.15
+  pc_inference_momentum: 0.0
+  pc_output_precision: 0.025
+  pc_value_clip: 2.0
+  pc_normalize_updates_by_nudge: true
   weight_decay: 1.0e-05
   gradient_clip_norm: 1.0
   seed: 7

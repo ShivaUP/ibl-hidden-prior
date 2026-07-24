@@ -30,6 +30,7 @@ if str(ROOT) not in sys.path:
 
 from src.models_v2.rollout import (
     REGIMES,
+    switch_centered_correctness_per_session,
     switch_centered_per_session,
 )
 from src.plot.v2_style import (
@@ -182,9 +183,7 @@ def _gap_ci_from_rollout(cfg: dict, domain: str, regime: str, model_id: str) -> 
     return mean_ci95(_session_history_gaps(roll))
 
 
-def _switch_mean_sem(roll, direction: str, before: int = 20, after: int = 30):
-    """Session-mean switch curve ± SEM across sessions."""
-    per = switch_centered_per_session(roll, before=before, after=after)
+def _curve_mean_sem(per: dict, direction: str):
     offsets = np.asarray(per["offsets"])
     rows = []
     for curves in per["per_session"]:
@@ -199,6 +198,36 @@ def _switch_mean_sem(roll, direction: str, before: int = 20, after: int = 30):
         std = np.nanstd(stack, axis=0, ddof=1)
     sem = np.where(n >= 2, std / np.sqrt(n), 0.0)
     return offsets, mean, sem
+
+
+def _switch_mean_sem(roll, direction: str, before: int = 30, after: int = 30):
+    """Session-mean switch belief curve ± SEM across sessions."""
+    per = switch_centered_per_session(roll, before=before, after=after)
+    return _curve_mean_sem(per, direction)
+
+
+def _switch_correctness_mean_sem(
+    roll, direction: str, before: int = 30, after: int = 30
+):
+    """Session-mean switch correctness curve ± SEM across sessions."""
+    per = switch_centered_correctness_per_session(roll, before=before, after=after)
+    return _curve_mean_sem(per, direction)
+
+
+def _post_switch_correctness_ci(
+    roll, direction: str, *, post_start: int = 0, post_end: int = 15
+) -> tuple[float, float]:
+    """Mean correctness in post-switch window [post_start, post_end], session 95% CI."""
+    per = switch_centered_correctness_per_session(roll, before=5, after=max(post_end, 30))
+    offsets = np.asarray(per["offsets"])
+    mask = (offsets >= post_start) & (offsets <= post_end)
+    sess_means = []
+    for curves in per["per_session"]:
+        row = np.asarray(curves[direction], dtype=float)
+        if not np.any(np.isfinite(row[mask])):
+            continue
+        sess_means.append(float(np.nanmean(row[mask])))
+    return mean_ci95(np.asarray(sess_means, dtype=float))
 
 
 def _plot_psychometric(ax, roll, regime: str, domain: str) -> None:
@@ -370,7 +399,7 @@ def _plot_switch(ax, roll, regime: str, domain: str) -> None:
         leg_fs = 8
         show_legend = True
     else:
-        per = switch_centered_per_session(roll, before=20, after=30)
+        per = switch_centered_per_session(roll, before=30, after=30)
         offsets = per["offsets"]
         n_sess = len(per["per_session"])
         colors = _session_colors(n_sess)
@@ -599,6 +628,7 @@ MODEL_LABELS = {
     "tanh_bptt": "tanh BPTT",
     "tanh_pc": "tanh PC",
     "gru": "GRU",
+    "gru_pc": "GRU PC",
     "bayes": "Bayes",
 }
 
@@ -1063,6 +1093,253 @@ def _synth_vs_real_board(cfg: dict, regime: str, out: Path) -> Path | None:
     return path
 
 
+def _history_gap_board(cfg: dict, domain: str, regime: str, out: Path) -> Path | None:
+    """Bar chart of history gap (0.8−0.2 zero-evidence belief) with session 95% CI."""
+    if regime == "fixed_prior":
+        return None
+    models, gaps, errs, colors = [], [], [], []
+    for mid in cfg["models"]:
+        m, e = _gap_ci_from_rollout(cfg, domain, regime, mid)
+        if not np.isfinite(m):
+            continue
+        models.append(_pretty(mid))
+        gaps.append(m)
+        errs.append(e if np.isfinite(e) else 0.0)
+        colors.append(MODEL_COLORS.get(mid, PASTEL["gray"]))
+    if not models:
+        return None
+    fig, ax = plt.subplots(figsize=(7.8, 4.8), constrained_layout=True)
+    bars = ax.bar(models, gaps, color=colors, yerr=errs, capsize=4, ecolor=PASTEL["ink"])
+    ax.axhline(0.0, color=PASTEL["gray"], lw=0.8)
+    pad_ylim_for_labels(ax, gaps, errs, headroom=0.08)
+    style_ylabel(ax, "History gap\n(mean zero-evidence P(right): 0.8 − 0.2)")
+    style_axes_title(
+        ax,
+        f"Prior-use strength — {domain} — {regime}\n(mean ± 95% CI across sessions)",
+    )
+    _label_above_bar(ax, bars, gaps, errs, pad=0.012)
+    path = out / f"{domain}_{regime}_history_gap.png"
+    save_figure(fig, path)
+    plt.close(fig)
+    return path
+
+
+def _overall_correctness_board(cfg: dict, domain: str, regime: str, out: Path) -> Path | None:
+    """Overall correctness vs correct side with session 95% CI."""
+    models, acc, errs, colors = [], [], [], []
+    for mid in cfg["models"]:
+        m, e = _acc_ci_from_rollout(cfg, domain, regime, mid)
+        if not np.isfinite(m):
+            continue
+        models.append(_pretty(mid))
+        acc.append(m)
+        errs.append(e if np.isfinite(e) else 0.0)
+        colors.append(MODEL_COLORS.get(mid, PASTEL["gray"]))
+    if not models:
+        return None
+    fig, ax = plt.subplots(figsize=(7.8, 4.8), constrained_layout=True)
+    bars = ax.bar(models, acc, color=colors, yerr=errs, capsize=4, ecolor=PASTEL["ink"])
+    pad_ylim_for_labels(ax, acc, errs, floor=CORRECTNESS_YLIM[0], headroom=0.07)
+    style_ylabel(ax, "Correctness vs correct stimulus side")
+    style_axes_title(
+        ax,
+        f"Overall correctness — {domain} — {regime}\n(mean ± 95% CI across sessions)",
+    )
+    _label_above_bar(ax, bars, acc, errs, pad=0.010)
+    path = out / f"{domain}_{regime}_overall_correctness.png"
+    save_figure(fig, path)
+    plt.close(fig)
+    return path
+
+
+def _switch_correctness_board(cfg: dict, domain: str, regime: str, out: Path) -> Path | None:
+    """Two-panel switch-centered correctness (0.2→0.8 and 0.8→0.2) with SEM bands."""
+    if regime == "fixed_prior":
+        return None
+    fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.9), constrained_layout=True)
+    fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.10, wspace=0.10, hspace=0.10)
+    any_curve = False
+    for mid in cfg["models"]:
+        path = _rollout_path(cfg, domain, regime, mid)
+        if not path.exists():
+            continue
+        roll = np.load(path)
+        color = MODEL_COLORS.get(mid, PASTEL["gray"])
+        for ax, direction in zip(axes, ("low_to_high", "high_to_low")):
+            offsets, mean, sem = _switch_correctness_mean_sem(roll, direction)
+            if not np.any(np.isfinite(mean)):
+                continue
+            ax.plot(offsets, mean, color=color, lw=2.0, label=_pretty(mid))
+            ax.fill_between(
+                offsets,
+                mean - sem,
+                mean + sem,
+                color=color,
+                alpha=0.28,
+                linewidth=0,
+            )
+            any_curve = True
+    if not any_curve:
+        plt.close(fig)
+        return None
+    for ax, title in zip(
+        axes,
+        (
+            "Switch 0.2 → 0.8\n(correctness around update)",
+            "Switch 0.8 → 0.2\n(correctness around update)",
+        ),
+    ):
+        ax.axvline(0, color=PASTEL["ink"], ls=":", lw=1)
+        ax.axhline(0.5, color=PASTEL["gray"], lw=1)
+        ax.set_ylim(0.45, 1.02)
+        style_axes_title(ax, title)
+        style_xlabel(ax, "Trials relative to block switch")
+        style_ylabel(ax, "Correctness (choice = correct side)")
+        ax.legend(frameon=False, fontsize=8, loc="best", borderaxespad=0.5)
+    style_suptitle(
+        fig,
+        f"Correctness around hidden-prior switches — {domain} — {regime} (mean ± SEM)",
+        y=1.05,
+    )
+    path = out / f"{domain}_{regime}_switch_correctness.png"
+    save_figure(fig, path)
+    plt.close(fig)
+    return path
+
+
+def _switch_correctness_summary_board(
+    cfg: dict, domain: str, regime: str, out: Path
+) -> Path | None:
+    """Post-switch correctness (trials 0–15) by direction, with 95% CI bars."""
+    if regime == "fixed_prior":
+        return None
+    models = []
+    low_hi, low_hi_e = [], []
+    hi_lo, hi_lo_e = [], []
+    colors = []
+    for mid in cfg["models"]:
+        path = _rollout_path(cfg, domain, regime, mid)
+        if not path.exists():
+            continue
+        roll = np.load(path)
+        m1, e1 = _post_switch_correctness_ci(roll, "low_to_high", post_start=0, post_end=15)
+        m2, e2 = _post_switch_correctness_ci(roll, "high_to_low", post_start=0, post_end=15)
+        if not (np.isfinite(m1) or np.isfinite(m2)):
+            continue
+        models.append(_pretty(mid))
+        low_hi.append(m1 if np.isfinite(m1) else np.nan)
+        low_hi_e.append(e1 if np.isfinite(e1) else 0.0)
+        hi_lo.append(m2 if np.isfinite(m2) else np.nan)
+        hi_lo_e.append(e2 if np.isfinite(e2) else 0.0)
+        colors.append(MODEL_COLORS.get(mid, PASTEL["gray"]))
+    if not models:
+        return None
+
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8), constrained_layout=True)
+    x = np.arange(len(models))
+    for ax, vals, errs, title in zip(
+        axes,
+        (low_hi, hi_lo),
+        (low_hi_e, hi_lo_e),
+        (
+            "Post-switch correctness\n0.2 → 0.8 (trials 0–15)",
+            "Post-switch correctness\n0.8 → 0.2 (trials 0–15)",
+        ),
+    ):
+        bars = ax.bar(x, vals, color=colors, yerr=errs, capsize=4, ecolor=PASTEL["ink"])
+        ax.set_xticks(x)
+        ax.set_xticklabels(models, rotation=15, ha="right")
+        pad_ylim_for_labels(ax, vals, errs, floor=0.5, headroom=0.07)
+        style_ylabel(ax, "Correctness vs correct side")
+        style_axes_title(ax, title)
+        _label_above_bar(ax, bars, vals, errs, pad=0.010)
+    style_suptitle(
+        fig,
+        f"Online updating shows up in post-switch correctness — {domain} — {regime}",
+        y=1.05,
+    )
+    path = out / f"{domain}_{regime}_switch_correctness_summary.png"
+    save_figure(fig, path)
+    plt.close(fig)
+    return path
+
+
+def _accuracy_switch_story_board(
+    cfg: dict, domain: str, regime: str, out: Path
+) -> Path | None:
+    """Story figure: overall correctness, then switch-direction correctness curves."""
+    if regime == "fixed_prior":
+        return None
+    fig = plt.figure(figsize=(13.5, 8.2), constrained_layout=True)
+    fig.set_constrained_layout_pads(w_pad=0.06, h_pad=0.08, wspace=0.08, hspace=0.12)
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.0, 1.15])
+    ax_overall = fig.add_subplot(gs[0, :])
+    ax_l2h = fig.add_subplot(gs[1, 0])
+    ax_h2l = fig.add_subplot(gs[1, 1])
+
+    models, acc, errs, colors = [], [], [], []
+    for mid in cfg["models"]:
+        m, e = _acc_ci_from_rollout(cfg, domain, regime, mid)
+        if not np.isfinite(m):
+            continue
+        models.append(_pretty(mid))
+        acc.append(m)
+        errs.append(e if np.isfinite(e) else 0.0)
+        colors.append(MODEL_COLORS.get(mid, PASTEL["gray"]))
+    if not models:
+        plt.close(fig)
+        return None
+    bars = ax_overall.bar(models, acc, color=colors, yerr=errs, capsize=4, ecolor=PASTEL["ink"])
+    pad_ylim_for_labels(ax_overall, acc, errs, floor=CORRECTNESS_YLIM[0], headroom=0.07)
+    style_ylabel(ax_overall, "Correctness")
+    style_axes_title(
+        ax_overall,
+        "1. Overall correctness (full task; mean ± 95% CI)",
+    )
+    _label_above_bar(ax_overall, bars, acc, errs, pad=0.010)
+
+    any_curve = False
+    for mid in cfg["models"]:
+        path = _rollout_path(cfg, domain, regime, mid)
+        if not path.exists():
+            continue
+        roll = np.load(path)
+        color = MODEL_COLORS.get(mid, PASTEL["gray"])
+        for ax, direction in ((ax_l2h, "low_to_high"), (ax_h2l, "high_to_low")):
+            offsets, mean, sem = _switch_correctness_mean_sem(roll, direction)
+            if not np.any(np.isfinite(mean)):
+                continue
+            ax.plot(offsets, mean, color=color, lw=2.0, label=_pretty(mid))
+            ax.fill_between(
+                offsets, mean - sem, mean + sem, color=color, alpha=0.28, linewidth=0
+            )
+            any_curve = True
+    if not any_curve:
+        plt.close(fig)
+        return None
+    for ax, title in (
+        (ax_l2h, "2a. Switch 0.2 → 0.8 (mean ± SEM)"),
+        (ax_h2l, "2b. Switch 0.8 → 0.2 (mean ± SEM)"),
+    ):
+        ax.axvline(0, color=PASTEL["ink"], ls=":", lw=1)
+        ax.axhline(0.5, color=PASTEL["gray"], lw=1)
+        ax.set_ylim(0.45, 1.02)
+        style_axes_title(ax, title)
+        style_xlabel(ax, "Trials relative to block switch")
+        style_ylabel(ax, "Correctness")
+        ax.legend(frameon=False, fontsize=8, loc="best", borderaxespad=0.5)
+
+    style_suptitle(
+        fig,
+        f"From overall accuracy to switch-centered updating — {domain} — {regime}",
+        y=1.02,
+    )
+    path = out / f"{domain}_{regime}_accuracy_to_switch_story.png"
+    save_figure(fig, path)
+    plt.close(fig)
+    return path
+
+
 def comparison_figures(cfg: dict, fig_root: Path) -> list[Path]:
     out_cmp = fig_root / "comparison"
     out_score = fig_root / "scorecards"
@@ -1072,15 +1349,22 @@ def comparison_figures(cfg: dict, fig_root: Path) -> list[Path]:
     regimes = list(cfg.get("eval", {}).get("regimes", REGIMES))
     for regime in regimes:
         for domain in DOMAINS:
-            p = _model_scorecard(cfg, domain, regime, out_score)
-            if p:
-                paths.append(p)
-            p = _model_switch_board(cfg, domain, regime, out_cmp)
-            if p:
-                paths.append(p)
-            p = _correctness_by_prior_board(cfg, domain, regime, out_cmp)
-            if p:
-                paths.append(p)
+            for maker in (
+                _model_scorecard,
+                _overall_correctness_board,
+                _history_gap_board,
+                _model_switch_board,
+                _switch_correctness_board,
+                _switch_correctness_summary_board,
+                _accuracy_switch_story_board,
+                _correctness_by_prior_board,
+            ):
+                if maker is _model_scorecard:
+                    p = maker(cfg, domain, regime, out_score)
+                else:
+                    p = maker(cfg, domain, regime, out_cmp)
+                if p:
+                    paths.append(p)
         p = _synth_vs_real_board(cfg, regime, out_cmp)
         if p:
             paths.append(p)
@@ -1106,7 +1390,6 @@ def comparison_figures(cfg: dict, fig_root: Path) -> list[Path]:
         save_figure(fig, path)
         plt.close(fig)
         paths.append(path)
-        # Keep old filename as copy for any external links
         legacy = out_cmp / "real_transfer_accuracy.png"
         shutil.copy(path, legacy)
         paths.append(legacy)
@@ -1139,8 +1422,23 @@ def main() -> int:
                 "Correctness + history gap; bold titles; mean ± 95% CI."
             ),
             "scorecards/SCORECARD_GUIDE.md": "How to read scorecards.",
+            "comparison/{domain}_{regime}_overall_correctness.png": (
+                "Overall correctness vs correct side; mean ± 95% CI."
+            ),
+            "comparison/{domain}_{regime}_history_gap.png": (
+                "History gap (0.8−0.2 zero-evidence belief); mean ± 95% CI."
+            ),
             "comparison/{domain}_{regime}_switch_board.png": (
-                "Side-by-side switch directions with mean ± SEM bands."
+                "Zero-evidence belief around 0.2↔0.8 switches; mean ± SEM."
+            ),
+            "comparison/{domain}_{regime}_switch_correctness.png": (
+                "Correctness around 0.2↔0.8 switches; mean ± SEM."
+            ),
+            "comparison/{domain}_{regime}_switch_correctness_summary.png": (
+                "Post-switch (0–15) correctness by direction; mean ± 95% CI."
+            ),
+            "comparison/{domain}_{regime}_accuracy_to_switch_story.png": (
+                "Story board: overall correctness then switch-centered correctness."
             ),
             "comparison/{domain}_{regime}_correctness_by_prior.png": (
                 "Correctness stratified by block prior P(right)=0.2/0.5/0.8 "

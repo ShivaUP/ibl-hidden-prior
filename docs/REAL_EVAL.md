@@ -29,7 +29,7 @@ On real rollouts, mouse action/reward are history **inputs** only.
 
 ## Neural comparison
 
-Regions (Allen): MOs, ORBvl, ACAd, MOp (primary analysis scope).
+Regions (Allen): MOs, ORBvl, ACAd, MOp (primary analysis scope). Active models: tanh_bptt, tanh_pc, gru, gru_pc.
 
 1. Spike counts (peri-stim) → CV Ridge → mouse \(\hat p_t\) = neural prior readout \(n_t\)
 2. Model belief \(q_t\) on the **same** trials

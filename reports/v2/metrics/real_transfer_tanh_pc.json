@@ -2,9 +2,9 @@
   "stage": "real_transfer",
   "model_id": "tanh_pc",
   "scoring": "correct_side_only",
-  "accuracy": 0.7922638916159435,
-  "acc_vs_correct_side": 0.7922638916159435,
-  "cross_entropy": 0.36510070501518155,
-  "ce_vs_correct_side": 0.36510070501518155,
+  "accuracy": 0.7932456312585903,
+  "acc_vs_correct_side": 0.7932456312585903,
+  "cross_entropy": 0.38358460249248844,
+  "ce_vs_correct_side": 0.38358460249248844,
   "n_sessions": 8
 }

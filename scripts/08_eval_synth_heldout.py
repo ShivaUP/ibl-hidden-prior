@@ -91,7 +91,7 @@ def main() -> int:
     p.add_argument(
         "--model",
         default=None,
-        choices=["tanh_bptt", "tanh_pc", "gru", "bayes"],
+        choices=["tanh_bptt", "tanh_pc", "gru", "gru_pc"],
     )
     args = p.parse_args()
     cfg = load_synthetic_config()

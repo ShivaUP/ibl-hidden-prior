@@ -12,7 +12,8 @@ MODEL_COLORS = {
     "tanh_bptt": "#6B9BD2",  # blue
     "tanh_pc": "#6FAF72",  # green
     "gru": "#D47A82",  # rose
-    "bayes": "#9B7DB8",  # lavender
+    "gru_pc": "#5EAEA6",  # teal
+    "bayes": "#9B7DB8",  # lavender (legacy)
 }
 
 # Darker pastel accents for paired / direction plots

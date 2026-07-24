@@ -1,13 +1,14 @@
 {
   "stage": "neural_matched_full_v2",
-  "created_utc": "2026-07-23T21:34:26.644136+00:00",
+  "created_utc": "2026-07-24T00:20:27.519295+00:00",
   "matched_models": [
-    "bayes",
     "gru",
-    "tanh_bptt",
+    "gru_pc",
+    "tanh_bptt"
+  ],
+  "excluded_models": [
     "tanh_pc"
   ],
-  "excluded_models": [],
   "ranking": [
     {
       "region": "ACAd",
@@ -25,15 +26,9 @@
           "n_sessions": 4
         },
         {
-          "model": "bayes",
-          "ve_linear_recal": 0.016097292786541102,
-          "corr": 0.12589653851562882,
-          "n_sessions": 4
-        },
-        {
-          "model": "tanh_pc",
-          "ve_linear_recal": 0.013948213829075575,
-          "corr": 0.11431721596057787,
+          "model": "gru_pc",
+          "ve_linear_recal": 0.0195580251896104,
+          "corr": 0.13218431192497507,
           "n_sessions": 4
         }
       ],
@@ -56,15 +51,9 @@
           "n_sessions": 3
         },
         {
-          "model": "bayes",
-          "ve_linear_recal": 0.0556210188148013,
-          "corr": 0.20615193529800815,
-          "n_sessions": 3
-        },
-        {
-          "model": "tanh_pc",
-          "ve_linear_recal": 0.0436019254299094,
-          "corr": 0.17598774741375897,
+          "model": "gru_pc",
+          "ve_linear_recal": 0.045674204307890466,
+          "corr": 0.19173965771484724,
           "n_sessions": 3
         }
       ],
@@ -87,15 +76,9 @@
           "n_sessions": 8
         },
         {
-          "model": "bayes",
-          "ve_linear_recal": 0.10619458734716583,
-          "corr": 0.2973411730599744,
-          "n_sessions": 8
-        },
-        {
-          "model": "tanh_pc",
-          "ve_linear_recal": 0.04989998120302761,
-          "corr": 0.1920379660104973,
+          "model": "gru_pc",
+          "ve_linear_recal": 0.08850633247786877,
+          "corr": 0.2734380306738498,
           "n_sessions": 8
         }
       ],
@@ -118,15 +101,9 @@
           "n_sessions": 5
         },
         {
-          "model": "bayes",
-          "ve_linear_recal": 0.10262940328470413,
-          "corr": 0.2518224824792413,
-          "n_sessions": 5
-        },
-        {
-          "model": "tanh_pc",
-          "ve_linear_recal": 0.04129128533380574,
-          "corr": 0.17510289484399247,
+          "model": "gru_pc",
+          "ve_linear_recal": 0.0813647162112593,
+          "corr": 0.21724648838963767,
           "n_sessions": 5
         }
       ],

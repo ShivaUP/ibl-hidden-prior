@@ -27,7 +27,7 @@ def load_model(model_id: str, path) -> Any:
 
     if model_id in ("tanh_bptt", "tanh_pc"):
         return TanhRNN.load(path)
-    if model_id == "gru":
+    if model_id in ("gru", "gru_pc"):
         return GRURNN.load(path)
     if model_id == "bayes":
         return ExplicitBayes.load(path)
@@ -424,7 +424,7 @@ def _get(roll, *keys: str) -> np.ndarray:
 def switch_centered_zero_evidence(
     roll,
     *,
-    before: int = 20,
+    before: int = 30,
     after: int = 30,
 ) -> Dict[str, np.ndarray]:
     try:
@@ -480,28 +480,33 @@ def switch_centered_zero_evidence(
     return out
 
 
-def switch_centered_per_session(
+def switch_centered_metric_per_session(
     roll,
+    metric: np.ndarray,
     *,
-    before: int = 20,
+    before: int = 30,
     after: int = 30,
 ) -> Dict[str, object]:
-    """Per-session mean switch curves (for variance-by-color plots)."""
+    """Per-session mean switch-centered curves for an arbitrary trial metric.
 
+    `metric` has shape (n_sessions, n_trials). Used for belief, correctness, etc.
+    Directions: low_to_high (0.2→0.8) and high_to_low (0.8→0.2).
+    """
     try:
         true_p = _get(roll, "true_p_right")
     except KeyError:
         true_p = 1.0 - _get(roll, "probability_left")
-    try:
-        pref = _get(roll, "zero_evidence_p_right")
-    except KeyError:
-        pref = _get(roll, "belief")
+    metric = np.asarray(metric, dtype=float)
+    if metric.shape != true_p.shape:
+        raise ValueError(
+            f"metric shape {metric.shape} must match true_p shape {true_p.shape}"
+        )
 
     offsets = np.arange(-before, after + 1)
     n_sess = int(true_p.shape[0])
     per: list[Dict[str, np.ndarray]] = []
     for session in range(n_sess):
-        valid = np.isfinite(true_p[session])
+        valid = np.isfinite(true_p[session]) & np.isfinite(metric[session])
         if "valid" in (getattr(roll, "files", None) or roll):
             try:
                 valid = valid & np.asarray(_get(roll, "valid")[session], dtype=bool)
@@ -517,7 +522,7 @@ def switch_centered_per_session(
             )
             continue
         p_sess = true_p[session].copy()
-        pref_sess = pref[session].copy()
+        m_sess = metric[session].copy()
         last = float(p_sess[np.flatnonzero(valid)[0]])
         for t in range(len(p_sess)):
             if not valid[t]:
@@ -530,14 +535,15 @@ def switch_centered_per_session(
                 continue
             if not valid[switch - before : switch + after + 1].all():
                 continue
-            direction = (
-                "low_to_high"
-                if p_sess[switch] > p_sess[switch - 1]
-                else "high_to_low"
-            )
-            groups[direction].append(
-                pref_sess[switch - before : switch + after + 1]
-            )
+            # Restrict to biased-block switches 0.2↔0.8 (ignore 0.5 transitions).
+            pre, post = float(p_sess[switch - 1]), float(p_sess[switch])
+            if not (
+                (np.isclose(pre, 0.2) and np.isclose(post, 0.8))
+                or (np.isclose(pre, 0.8) and np.isclose(post, 0.2))
+            ):
+                continue
+            direction = "low_to_high" if post > pre else "high_to_low"
+            groups[direction].append(m_sess[switch - before : switch + after + 1])
         entry: Dict[str, np.ndarray] = {}
         for direction in ("low_to_high", "high_to_low"):
             curves = groups[direction]
@@ -548,6 +554,42 @@ def switch_centered_per_session(
             )
         per.append(entry)
     return {"offsets": offsets, "per_session": per}
+
+
+def switch_centered_correctness_per_session(
+    roll,
+    *,
+    before: int = 30,
+    after: int = 30,
+) -> Dict[str, object]:
+    """Switch-centered trial correctness (choice == correct stimulus side)."""
+    choice = np.asarray(_get(roll, "choice"))
+    side = np.asarray(_get(roll, "side"))
+    correct = (choice == side).astype(np.float64)
+    return switch_centered_metric_per_session(
+        roll, correct, before=before, after=after
+    )
+
+
+def switch_centered_per_session(
+    roll,
+    *,
+    before: int = 30,
+    after: int = 30,
+) -> Dict[str, object]:
+    """Per-session mean switch curves of zero-evidence belief (for variance plots)."""
+
+    try:
+        true_p = _get(roll, "true_p_right")
+    except KeyError:
+        true_p = 1.0 - _get(roll, "probability_left")
+    try:
+        pref = _get(roll, "zero_evidence_p_right")
+    except KeyError:
+        pref = _get(roll, "belief")
+    return switch_centered_metric_per_session(
+        roll, np.asarray(pref, dtype=float), before=before, after=after
+    )
 
 
 def summarize_kyan_diagnostics(roll) -> Dict[str, object]:

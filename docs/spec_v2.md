@@ -25,15 +25,17 @@ Train models **only on synthetic IBL-like sessions**, compare them on **held-out
 | ID | Model | Source | Test-time computation | Training |
 |---|---|---|---|---|
 | `tanh_bptt` | Vanilla tanh RNN | Adapt Kyan standard | tanh RNN | BPTT |
-| `tanh_pc` | Same tanh RNN | Adapt Kyan PC agent | **Identical** tanh RNN | Predictive-coding **credit assignment** (local inference + local synaptic updates) |
+| `tanh_pc` | Same tanh RNN | Corrected PC (`PC_V2_CORRECTED.py`) | **Identical** tanh RNN | Predictive-coding **credit assignment** (32 inference rounds, weak output precision) |
 | `gru` | GRU | Adapt Shrijana | GRU cell | BPTT |
-| `bayes` | Explicit online prior | New / port of project Bayes idea | Explicit \(q_t\) + stimulus readout | Likelihood / BPTT-through-params (**no** Bayes+CA twin) |
+| `gru_pc` | Same GRU | Gate-aware PC | **Identical** GRU | Gate-aware predictive-coding credit assignment |
 
-**PC naming:** `tanh_pc` = credit-assignment training, **not** v1 PE-dynamics cell.
+**PC naming:** `tanh_pc` / `gru_pc` = credit-assignment training, **not** v1 PE-dynamics cells.
+
+**Active set:** `{tanh_bptt, tanh_pc, gru, gru_pc}`. `bayes` is legacy only (module retained; not in active comparison).
 
 **Adaptation rule:** Kyan/Shrijana code is a **reference**, not frozen. Rewrite as needed for empirical ticks, shared schema, and project layout.
 
-**Parked:** v1 PyTorch GRU / PE-PC / mouse-fit Bayes as primary; Bayesian+CA; meta-RL; neural-as-gate.
+**Parked:** Bayes as primary; Bayesian+CA; meta-RL; neural-as-gate.
 
 ---
 
@@ -125,7 +127,7 @@ reports/v2/
     comparison/...
 ```
 
-- `model_id` ∈ `{tanh_bptt, tanh_pc, gru, bayes}`
+- `model_id` ∈ `{tanh_bptt, tanh_pc, gru, gru_pc}` (`bayes` legacy only)
 - Stage ∈ `{synth_heldout, real_transfer}`
 - No silent overwrites: stamp or `run_id` in config when needed
 

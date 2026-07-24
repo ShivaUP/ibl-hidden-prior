@@ -1,0 +1,10 @@
+{
+  "stage": "real_transfer",
+  "model_id": "gru_pc",
+  "scoring": "correct_side_only",
+  "accuracy": 0.8362458276065188,
+  "acc_vs_correct_side": 0.8362458276065188,
+  "cross_entropy": 0.35137333482748917,
+  "ce_vs_correct_side": 0.35137333482748917,
+  "n_sessions": 8
+}

@@ -39,7 +39,7 @@ from src.synthetic.schema import load_synthetic_config
 from src.neural.regions import NEURAL_REGIONS
 
 REGIONS = NEURAL_REGIONS
-MODELS = ("tanh_bptt", "tanh_pc", "gru", "bayes")
+MODELS = ("tanh_bptt", "tanh_pc", "gru", "gru_pc")
 SHARED = ROOT / "data" / "manifests" / "shared_behavior_neural_eids.json"
 
 

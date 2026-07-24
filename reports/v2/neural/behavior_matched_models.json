@@ -6,28 +6,29 @@
   "best_model": "gru",
   "best_choice_nll": 0.3282629887601587,
   "matched_models": [
-    "bayes",
     "gru",
-    "tanh_bptt",
+    "gru_pc",
+    "tanh_bptt"
+  ],
+  "excluded_models": [
     "tanh_pc"
   ],
-  "excluded_models": [],
   "rows": [
     {
-      "model": "bayes",
-      "choice_nll": 0.3504464204476418,
+      "model": "gru",
+      "choice_nll": 0.3282629887601587,
       "rt_nll": 0.0,
-      "choice_delta_from_best": 0.0221834316874831,
+      "choice_delta_from_best": 0.0,
       "in_choice_epsilon_ball": true,
       "passes_rt_floor": true,
       "matched": true,
       "exclude_reason": ""
     },
     {
-      "model": "gru",
-      "choice_nll": 0.3282629887601587,
+      "model": "gru_pc",
+      "choice_nll": 0.35137333482748917,
       "rt_nll": 0.0,
-      "choice_delta_from_best": 0.0,
+      "choice_delta_from_best": 0.02311034606733048,
       "in_choice_epsilon_ball": true,
       "passes_rt_floor": true,
       "matched": true,
@@ -45,18 +46,18 @@
     },
     {
       "model": "tanh_pc",
-      "choice_nll": 0.36510070501518155,
+      "choice_nll": 0.38358460249248844,
       "rt_nll": 0.0,
-      "choice_delta_from_best": 0.036837716255022857,
-      "in_choice_epsilon_ball": true,
+      "choice_delta_from_best": 0.055321613732329744,
+      "in_choice_epsilon_ball": false,
       "passes_rt_floor": true,
-      "matched": true,
-      "exclude_reason": ""
+      "matched": false,
+      "exclude_reason": "choice_nll_delta=0.0553>0.05"
     }
   ],
   "assert_choice_primary": true,
   "metric_source": "shared cohort real_history_only_*.json CE",
-  "created_utc": "2026-07-23T21:34:26.644136+00:00",
+  "created_utc": "2026-07-24T00:20:27.519295+00:00",
   "notes": [
     "Choice-primary \u03b5-ball on shared behavior+neural cohort CE.",
     "RT floor non-binding.",

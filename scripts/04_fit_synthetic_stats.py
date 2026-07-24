@@ -202,7 +202,7 @@ def main() -> int:
         "frozen_date": "2026-07-21",
         "spec": "docs/spec_v2.md",
         "stats_path": "data/manifests/synthetic_stats_v2.json",
-        "models": ["tanh_bptt", "tanh_pc", "gru", "bayes"],
+        "models": ["tanh_bptt", "tanh_pc", "gru", "gru_pc"],
         "hidden_size": 48,
         "channels": [
             "visual_right",

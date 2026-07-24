@@ -1,6 +1,6 @@
 {
-  "accuracy": 0.75625,
-  "cross_entropy": 0.5029830876550179,
+  "accuracy": 0.728125,
+  "cross_entropy": 0.5224497600625775,
   "domain": "synth",
   "regime": "fixed_prior",
   "model_id": "tanh_pc",

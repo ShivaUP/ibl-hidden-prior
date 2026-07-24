@@ -1,8 +1,8 @@
 {
-  "accuracy": 0.7725988700564972,
-  "acc_vs_correct_side": 0.7725988700564972,
-  "cross_entropy": 0.40183832700191213,
-  "ce_vs_correct_side": 0.40183832700191213,
+  "accuracy": 0.7344632768361582,
+  "acc_vs_correct_side": 0.7344632768361582,
+  "cross_entropy": 0.4378753405014194,
+  "ce_vs_correct_side": 0.4378753405014194,
   "domain": "real",
   "regime": "fixed_prior",
   "model_id": "tanh_pc",

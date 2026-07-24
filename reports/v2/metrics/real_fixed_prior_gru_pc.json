@@ -1,0 +1,15 @@
+{
+  "accuracy": 0.7923728813559322,
+  "acc_vs_correct_side": 0.7923728813559322,
+  "cross_entropy": 0.39414337685374307,
+  "ce_vs_correct_side": 0.39414337685374307,
+  "domain": "real",
+  "regime": "fixed_prior",
+  "model_id": "gru_pc",
+  "stage": "real_regime",
+  "n_sessions": 8,
+  "n_trials_pooled": 708,
+  "kyan_diagnostics": {
+    "note": "switch/history-gap N/A on fixed_prior"
+  }
+}

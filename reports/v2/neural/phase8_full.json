@@ -1,6 +1,6 @@
 {
   "stage": "neural_full_shared_cohort_v2",
-  "created_utc": "2026-07-23T21:32:55.376504+00:00",
+  "created_utc": "2026-07-24T00:18:23.393047+00:00",
   "manifest": "data/manifests/shared_behavior_neural_eids.json",
   "n_eids_requested": 8,
   "n_eids_with_rows": 8,
@@ -8,7 +8,7 @@
     "tanh_bptt",
     "tanh_pc",
     "gru",
-    "bayes"
+    "gru_pc"
   ],
   "primary_metric": "ve_linear_recal",
   "aggregation": "per-session VE, then mean across sessions (ve_unmatched_session_mean.csv)",

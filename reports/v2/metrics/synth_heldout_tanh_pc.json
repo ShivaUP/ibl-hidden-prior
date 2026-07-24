@@ -1,28 +1,28 @@
 {
   "stage": "synth_heldout",
   "model_id": "tanh_pc",
-  "accuracy": 0.7114504843918191,
-  "cross_entropy": 0.5306551877159967,
-  "acc_block_p_right_0.2": 0.6107072491337727,
-  "acc_block_p_right_0.5": 0.7161172161172161,
-  "acc_block_p_right_0.8": 0.8217784758058485,
-  "zero_contrast_p_choice_right_mean": 0.6147527287541771,
+  "accuracy": 0.7653727125941873,
+  "cross_entropy": 0.47231977707589,
+  "acc_block_p_right_0.2": 0.7816427746450166,
+  "acc_block_p_right_0.5": 0.7045177045177046,
+  "acc_block_p_right_0.8": 0.7549173584623439,
+  "zero_contrast_p_choice_right_mean": 0.48223169644160585,
   "zero_contrast_n": 5780,
   "kyan_diagnostics": {
     "zero_contrast_observed_choice_probability": {
-      "low_p_right_block": 0.6003719798600253,
-      "high_p_right_block": 0.6302293429352026
+      "low_p_right_block": 0.3871023194881066,
+      "high_p_right_block": 0.5841303112565318
     },
     "counterfactual_zero_evidence_choice_probability": {
-      "low_p_right_block": 0.6158407517359692,
-      "high_p_right_block": 0.6473463992336562,
-      "history_gap": 0.03150564749768703
+      "low_p_right_block": 0.38421958773290543,
+      "high_p_right_block": 0.5999550652087714,
+      "history_gap": 0.21573547747586597
     },
     "settled_block_zero_evidence_calibration": {
       "definition": "trials at least 15 trials after the most recent switch",
-      "low_p_right_block": 0.6147009573941277,
-      "high_p_right_block": 0.6467966716332985,
-      "mean_absolute_error_to_true_prior": 0.29823583600011877
+      "low_p_right_block": 0.3770210338548787,
+      "high_p_right_block": 0.6047469584758134,
+      "mean_absolute_error_to_true_prior": 0.1943030917614822
     }
   }
 }

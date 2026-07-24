@@ -171,7 +171,7 @@ def eval_real(model_id: str, regime: str, cfg: dict) -> dict:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--model", default=None, choices=["tanh_bptt", "tanh_pc", "gru", "bayes"])
+    p.add_argument("--model", default=None, choices=["tanh_bptt", "tanh_pc", "gru", "gru_pc"])
     p.add_argument("--regime", default=None, choices=list(REGIMES))
     p.add_argument("--domain", default=None, choices=["synth", "real", "both"])
     args = p.parse_args()
